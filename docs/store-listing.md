@@ -53,10 +53,11 @@ Free and open source. No account, no subscription, no password.
 • CVS ExtraCare coupons (Send to card)
 • Walgreens digital coupons
 • BJ's Wholesale Club coupons
+• Chase Offers (credit card offers)
 
 In development: Publix, Meijer mPerks, ShopRite, Stop & Shop, Giant, Food
 Lion, Hannaford, Dollar General, Hy-Vee, Harris Teeter, Wegmans, and card
-offers (Amex, Chase, Citi, Bank of America, Capital One). New stores are added
+offers (Amex, Citi, Bank of America, Capital One). New stores are added
 regularly. Want another one? Request it on GitHub.
 
 ★ This clips store coupons, not promo codes

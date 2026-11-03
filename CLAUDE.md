@@ -79,3 +79,16 @@ page at run time.
   `[data-testid^="qa-id-walmartReward-"] .pointer`; success = the card says
   "Offer claimed" and stays that way (the UI flips optimistically and reverts
   on failure); pager button `aria-label="Next Page"`, 50 offers per page.
+- **Chase Offers** (`content/chase.js`): a bank account, so the adapter drives
+  the page and stays out of the daily run (`noDaily`). The whole list is in the
+  page at `#/dashboard/merchantOffers/offerCategoriesPage?offerCategoryName=ALL`
+  (Chase adds the `accountId`; never hard-code one). Tiles are
+  `a[data-testid="commerce-tile"]`; `aria-label` ends "Add offer" or "Success
+  Added". Pressing one adds the offer and moves to
+  `#/dashboard/merchantOffers/offer-activated/<offerId>`, whose "Explore more
+  offers" tiles have the same markup and must never be pressed, so go back and
+  wait for the full list first. Tiles keep their places after going back; added
+  offers only sort to the bottom on a fresh load. The left-hand filters ("Not
+  added" etc.) aren't in the URL and reset on going back, so they can't drive the
+  loop; the adapter clears them at the start. All Chase screens share one
+  path, which is why `runStore` also compares the #route when reusing a tab.

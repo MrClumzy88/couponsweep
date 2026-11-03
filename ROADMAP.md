@@ -29,7 +29,8 @@ guesses.
 - [ ] Ahold Delhaize: Stop & Shop, Giant Food, GIANT, Martin's, Food Lion, Hannaford. Probably one shared backend, so one adapter.
 - [ ] Harris Teeter (Kroger-owned, separate site).
 - [ ] Publix, Meijer mPerks, ShopRite, Dollar General, Hy-Vee, Wegmans.
-- [ ] Card offers: Amex, Chase, Citi, Bank of America, Capital One. Bank sites are strict about automation and hold far more sensitive accounts: drive the page's own buttons only, go slowly, and stop at any challenge.
+- [x] Chase Offers (the card the page has open; other cards still to do).
+- [ ] Card offers: Amex, Citi, Bank of America, Capital One. Bank sites are strict about automation and hold far more sensitive accounts: drive the page's own buttons only, go slowly, and stop at any challenge.
 
 ## Possible paid extras (later, only if it takes off)
 

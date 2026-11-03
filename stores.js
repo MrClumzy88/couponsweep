@@ -1,7 +1,7 @@
 // Stores the extension knows about. `url` is the page the run happens on;
 // `host` finds an already-open tab for that store. `adapter` names the file
 // in content/ that handles it. `comingSoon` stores show in the popup but
-// never run.
+// never run. `noDaily` stores only run when the user starts them.
 
 const albertsonsFamily = [
   ["albertsons", "Albertsons", "albertsons.com"],
@@ -65,7 +65,6 @@ const inDevelopment = [
   ["wegmans", "Wegmans", "www.wegmans.com", "https://www.wegmans.com/"],
   ["unitedsupermarkets", "United Supermarkets", "www.unitedsupermarkets.com", "https://www.unitedsupermarkets.com/"],
   ["amexoffers", "Amex Offers", "global.americanexpress.com", "https://global.americanexpress.com/offers"],
-  ["chaseoffers", "Chase Offers", "secure.chase.com", "https://www.chase.com/"],
   ["citioffers", "Citi Merchant Offers", "online.citi.com", "https://online.citi.com/"],
   ["bofadeals", "BankAmeriDeals", "secure.bankofamerica.com", "https://www.bankofamerica.com/"],
   ["capitaloneoffers", "Capital One Offers", "capitaloneoffers.com", "https://capitaloneoffers.com/"],
@@ -80,6 +79,7 @@ export const STORES = [
   ...krogerFamily,
   ...albertsonsFamily,
   { id: "walmart", name: "Walmart Cash", adapter: "walmart", host: "www.walmart.com", url: "https://www.walmart.com/offer/all-offers" },
+  { id: "chaseoffers", name: "Chase Offers", adapter: "chase", host: "secure.chase.com", url: "https://secure.chase.com/web/auth/dashboard#/dashboard/merchantOffers/offerCategoriesPage?offerCategoryName=ALL", noDaily: true },
   ...inDevelopment,
 ];
 
