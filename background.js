@@ -48,9 +48,15 @@ async function startRunner(tabId, auto) {
 async function runStore(store, auto) {
   // Reuse a tab that's already on the coupon page; never navigate away from
   // whatever else the user has open on that site.
-  const path = new URL(store.url).pathname;
+  // Single-page sites keep every screen on one path, so compare the #route too.
+  const { pathname: path, hash } = new URL(store.url);
+  const route = (h) => h.split("?")[0];
   const existing = (await chrome.tabs.query({ url: `https://${store.host}/*` }))
-    .find((t) => t.url && new URL(t.url).pathname === path);
+    .find((t) => {
+      if (!t.url) return false;
+      const u = new URL(t.url);
+      return u.pathname === path && (!hash || route(u.hash) === route(hash));
+    });
   const tab = existing || await chrome.tabs.create({ url: store.url, active: !auto });
   await chrome.storage.local.set({ live: { store: store.id, text: "Opening page…" } });
   await waitForLoad(tab.id);
@@ -122,7 +128,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name !== DAILY_ALARM) return;
   const { checkedInOrder } = await getSettings();
-  enqueue(checkedInOrder, true);
+  enqueue(checkedInOrder.filter((id) => !STORES.find((s) => s.id === id)?.noDaily), true);
 });
 
 chrome.runtime.onInstalled.addListener(syncAlarm);
