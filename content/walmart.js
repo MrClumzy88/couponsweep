@@ -31,6 +31,7 @@
   // ── Pass 2: search results ─────────────────────────────────────────────
   const SEARCH_URL = "/browse?facet=reward_eligible%3AWalmart+Cash+eligible";
   const SEARCH_PAGES = 10; // Walmart returns nothing past page 10.
+  const BUSY_FIRST = [/^food/i, /personal care/i, /household/i, /beauty/i, /health/i, /baby/i];
   const tiles = () => [...document.querySelectorAll("main [data-item-id]")];
   const getLabel = (tile) => [...tile.querySelectorAll('label[id^="product-reward-toggle-clip-checkbox-label-"]')]
     .find((l) => /^Get \$[\d.]+ Walmart Cash/i.test(l.innerText.trim()));
@@ -128,7 +129,13 @@
       // Pass 2
       ctx.status("Searching products with Walmart Cash offers…");
       await goSearch(ctx, SEARCH_URL);
-      const depts = departments();
+      // The departments with the most offers go first, so a run that gets cut
+      // short has already done the most valuable part.
+      const rank = (d) => {
+        const i = BUSY_FIRST.findIndex((re) => re.test(d.name));
+        return i < 0 ? BUSY_FIRST.length : i;
+      };
+      const depts = departments().sort((a, b) => rank(a) - rank(b));
       if (!depts.length) depts.push({ name: "All", href: SEARCH_URL });
       const seenItems = new Set();
 
@@ -137,8 +144,13 @@
         ctx.status(`Search: ${dept.name} (${i + 1} of ${depts.length})…`);
         await goSearch(ctx, dept.href);
 
+        let quietPages = 0;
         for (let page = 1; page <= SEARCH_PAGES && tiles().length; page++) {
           ctx.checkStop();
+          // Two pages in a row with nothing to claim: the rest of this
+          // department was most likely claimed on an earlier run.
+          const todo = tiles().filter(getLabel).length;
+          quietPages = todo ? 0 : quietPages + 1;
           // Departments overlap; count each product once.
           const fresh = tiles().filter((t) => !seenItems.has(t.getAttribute("data-item-id")));
           fresh.forEach((t) => seenItems.add(t.getAttribute("data-item-id")));
@@ -162,12 +174,13 @@
           }
 
           const next = searchNext();
-          if (page === SEARCH_PAGES || !next || next.disabled || next.getAttribute("aria-disabled") === "true") break;
+          if (quietPages >= 2 || page === SEARCH_PAGES || !next || next.disabled || next.getAttribute("aria-disabled") === "true") break;
           const first = firstId();
           ctx.status(`Search: ${dept.name}, page ${page + 1}…`);
           next.click();
           if (!(await waitFor(ctx, () => tiles().length > 0 && firstId() !== first, 10000))) break;
-          await ctx.sleep(ctx.between(800, 1500));
+          // Paging through pages with nothing to claim needs only a short pause.
+          await ctx.sleep(todo ? ctx.between(800, 1500) : ctx.between(300, 600));
         }
       }
     },
