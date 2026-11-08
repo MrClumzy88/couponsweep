@@ -162,6 +162,8 @@
         return ok;
       },
       status: (text) => report(text),
+      // For long stretches with nothing to clip (paging, moving between lists).
+      checkStop() { if (stopRequested) throw new StopRun("stopped", "Stopped."); },
     };
 
     try {

@@ -79,6 +79,18 @@ page at run time.
   `[data-testid^="qa-id-walmartReward-"] .pointer`; success = the card says
   "Offer claimed" and stays that way (the UI flips optimistically and reverts
   on failure); pager button `aria-label="Next Page"`, 50 offers per page.
+  All-offers lists only part of the offers. The rest show up in product search
+  `/browse?facet=reward_eligible:Walmart Cash eligible`: product cards are
+  `main [data-item-id]`; an unclaimed offer is a
+  `label[id^="product-reward-toggle-clip-checkbox-label-"]` reading "Get $X
+  Walmart Cash" (click the label); claimed cards say "$X claimed"; "Walmart
+  Cash available" means pick an option first (skipped). Claims land in
+  `/offer/claimed-offers` as the same campaigns. Search returns nothing past
+  page 10 (~400 products) though its pager shows 25, so the adapter walks the
+  department links (`cat_id` + the same facet) instead. It moves there with
+  `window.next.router.push` so the content script survives; a full page load
+  would end the run. The "In-store" toggle is a sticky per-user setting; the
+  adapter leaves it alone.
 - **Chase Offers** (`content/chase.js`): a bank account, so the adapter drives
   the page and stays out of the daily run (`noDaily`). The whole list is in the
   page at `#/dashboard/merchantOffers/offerCategoriesPage?offerCategoryName=ALL`
