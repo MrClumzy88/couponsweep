@@ -87,7 +87,7 @@
           if (err) { console.log("[CouponSweep] HEB clip failed", c.id, err.message); return false; }
           const typename = groupId ? res.data?.clipGroup?.__typename : res.data?.clip?.__typename;
           return typename === "CouponV2" || typename === "CouponGroup";
-        }, [300, 700]);
+        }, [300, 700], ctx.dollarsOff(c));
         if (groupId) groupsDone.add(groupId);
       }
     },

@@ -100,7 +100,7 @@
           if (!res.ok) { console.log("[CouponSweep] clip failed", o.offerId, res.status); return false; }
           const body = await res.json().catch(() => ({}));
           return body?.items?.[0]?.status === 1;
-        }, [450, 950]);
+        }, [450, 950], ctx.dollarsOff(o));
       }
     },
   });

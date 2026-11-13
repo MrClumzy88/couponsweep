@@ -19,6 +19,13 @@ page at run time.
   site's loaded JS bundles or watching the site's own request, not by guessing.
 - Chrome throttles timers in background tabs, so the runner's pauses are timed
   by the service worker (`gbc:sleep` → `content/bridge.js` → `background.js`).
+- Runs go in lanes (`background.js`): each API adapter family is its own lane,
+  and every `drivesPage` store (one that scrolls and presses buttons) shares
+  one lane. Lanes run at the same time; stores in a lane take turns. Mark a new
+  page-driving store `drivesPage: true` in `stores.js`.
+- Pass each offer's dollar value as the third argument to `ctx.clip()`
+  (`ctx.dollarsOff(textOrOffer)` reads "$X off" / "Save $X"; read it before
+  clicking, since card text changes). It feeds the popup's monthly total.
 - New stores go in `stores.js`, `manifest.json` (host_permissions and
   content_scripts) and the README's store table.
 

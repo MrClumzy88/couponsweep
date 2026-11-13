@@ -2,6 +2,9 @@
 // `host` finds an already-open tab for that store. `adapter` names the file
 // in content/ that handles it. `comingSoon` stores show in the popup but
 // never run. `noDaily` stores only run when the user starts them.
+// `drivesPage` stores press the page's own buttons (and scroll it) instead of
+// calling the site's API, so they need a rendering page and run one at a time
+// (see background.js).
 
 const albertsonsFamily = [
   ["albertsons", "Albertsons", "albertsons.com"],
@@ -73,13 +76,13 @@ const inDevelopment = [
 export const STORES = [
   { id: "heb", name: "H-E-B", adapter: "heb", host: "www.heb.com", url: "https://www.heb.com/digital-coupon/coupon-selection/all-coupons" },
   { id: "target", name: "Target Circle", adapter: "target", host: "www.target.com", url: "https://www.target.com/deals/all?facet=tap_to_apply" },
-  { id: "cvs", name: "CVS ExtraCare", adapter: "cvs", host: "www.cvs.com", url: "https://www.cvs.com/extracare/home" },
-  { id: "bjs", name: "BJ's", adapter: "bjs", host: "www.bjs.com", url: "https://www.bjs.com/myCoupons" },
-  { id: "walgreens", name: "Walgreens", adapter: "walgreens", host: "www.walgreens.com", url: "https://www.walgreens.com/offers/offers.jsp" },
+  { id: "cvs", name: "CVS ExtraCare", adapter: "cvs", host: "www.cvs.com", url: "https://www.cvs.com/extracare/home", drivesPage: true },
+  { id: "bjs", name: "BJ's", adapter: "bjs", host: "www.bjs.com", url: "https://www.bjs.com/myCoupons", drivesPage: true },
+  { id: "walgreens", name: "Walgreens", adapter: "walgreens", host: "www.walgreens.com", url: "https://www.walgreens.com/offers/offers.jsp", drivesPage: true },
   ...krogerFamily,
   ...albertsonsFamily,
-  { id: "walmart", name: "Walmart Cash", adapter: "walmart", host: "www.walmart.com", url: "https://www.walmart.com/offer/all-offers" },
-  { id: "chaseoffers", name: "Chase Offers", adapter: "chase", host: "secure.chase.com", url: "https://secure.chase.com/web/auth/dashboard#/dashboard/merchantOffers/offerCategoriesPage?offerCategoryName=ALL", noDaily: true },
+  { id: "walmart", name: "Walmart Cash", adapter: "walmart", host: "www.walmart.com", url: "https://www.walmart.com/offer/all-offers", drivesPage: true },
+  { id: "chaseoffers", name: "Chase Offers", adapter: "chase", host: "secure.chase.com", url: "https://secure.chase.com/web/auth/dashboard#/dashboard/merchantOffers/offerCategoriesPage?offerCategoryName=ALL", noDaily: true, drivesPage: true },
   ...inDevelopment,
 ];
 

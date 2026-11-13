@@ -54,6 +54,7 @@
 
       let failStreak = 0;
       for (const c of todo) {
+        const value = ctx.dollarsOff(c.innerText); // Read before the card changes.
         const ok = await ctx.clip(async () => {
           const button = sendButton(c);
           if (!button) return onCard(c);
@@ -62,7 +63,7 @@
           if (!(await waitFor(ctx, () => onCard(c) || refusedByCvs(c), 6000))) return false;
           await ctx.sleep(800);
           return onCard(c);
-        }, [700, 1400]);
+        }, [700, 1400], value);
         failStreak = ok || refusedByCvs(c) ? 0 : failStreak + 1;
         if (failStreak >= 5) throw ctx.fail("blocked", "CVS stopped accepting coupons. Wait a while, reload the page, and run again.");
       }

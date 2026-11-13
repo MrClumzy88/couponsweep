@@ -12,8 +12,8 @@ Worked on weekly. The core (clipping at every supported store) stays free.
 
 ## Next features
 
-- [ ] **Savings total** in the popup ("$184 in coupons clipped this month"). Kroger's list has `savings`; Walgreens and BJ's adapters already read the "$" amount from card text; others need the value parsed from the offer.
-- [ ] **Run summary** after the daily run ("12 new coupons clipped at Kroger"), via a notification or the badge.
+- [x] **Savings total** in the popup ("$184 in coupons clipped this month"). Kroger's list has `savings`; Walgreens and BJ's adapters already read the "$" amount from card text; others need the value parsed from the offer.
+- [x] **Run summary** after the daily run ("12 new coupons clipped at Kroger"), via a notification or the badge.
 - [ ] **BJ's: recover from "Please refresh the page"** by reloading and continuing instead of stopping.
 - [ ] **Firefox version**: background needs `background.scripts` alongside `service_worker`; publish on addons.mozilla.org.
 - [ ] **A page per store** on GitHub Pages ("How to clip all Hannaford digital coupons"), which is how OttoClipper ranks in search.

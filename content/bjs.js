@@ -56,12 +56,13 @@
 
       let failStreak = 0;
       for (const b of todo) {
+        const value = ctx.dollarsOff(couponText(b)); // Read before the button changes.
         const ok = await ctx.clip(async () => {
           if (!b.isConnected) return false;
           b.scrollIntoView({ block: "center" });
           b.click();
           return waitFor(ctx, () => clipped(b), 6000);
-        }, [450, 900]);
+        }, [450, 900], value);
         failStreak = ok ? 0 : failStreak + 1;
         if (failStreak >= 5) throw ctx.fail("error", "BJ's stopped accepting clips. Your card may be full; check BJ's page for a message.");
       }
