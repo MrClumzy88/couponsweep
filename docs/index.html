@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CouponSweep: free auto coupon clipper for Kroger, Safeway, H-E-B, CVS and more</title>
+<meta name="description" content="Clip every digital coupon in one click at 44 stores, including Kroger, Safeway, H-E-B, Target, Walmart, CVS and Walgreens. Free, open source, never sees your password.">
+<link rel="canonical" href="https://mrclumzy88.github.io/couponsweep/">
+<link rel="icon" href="icon-128.png">
+<style>
+:root { --bg: #fff; --fg: #0f172a; --muted: #475569; --line: #e2e8f0; --accent: #15803d; --box: #f1f5f9; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0f172a; --fg: #e5e7eb; --muted: #94a3b8; --line: #1e293b; --accent: #4ade80; --box: #1e293b; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+main, header, footer { max-width: 720px; margin: 0 auto; padding: 0 16px; }
+header { padding-top: 20px; }
+header a { color: var(--fg); font-weight: 700; text-decoration: none; }
+h1 { font-size: 1.9rem; line-height: 1.25; margin: 24px 0 8px; }
+h2 { font-size: 1.25rem; margin: 32px 0 8px; }
+a { color: var(--accent); }
+.lede { color: var(--muted); font-size: 1.1rem; margin-top: 0; }
+.cta { display: inline-block; margin: 8px 0; padding: 10px 18px; border-radius: 8px; background: var(--accent); color: var(--bg); font-weight: 700; text-decoration: none; }
+.note { border-left: 4px solid var(--muted); background: var(--box); padding: 10px 14px; border-radius: 4px; }
+img { max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: 8px; }
+ol li, ul li { margin: 4px 0; }
+.stores { columns: 2 220px; padding-left: 20px; }
+footer { color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--line); margin-top: 40px; padding-top: 12px; padding-bottom: 32px; }
+</style>
+</head>
+<body>
+<header><a href="./">CouponSweep</a></header>
+<main>
+
+<h1>Clip every digital coupon at every store you shop, for free</h1>
+<p class="lede">CouponSweep is a free, open-source browser extension that clips all of your digital coupons in one click, using the store accounts you're already signed in to. It never sees your password and sends nothing anywhere except to the store itself.</p>
+<a class="cta" href="https://github.com/MrClumzy88/couponsweep#install">Get CouponSweep (free)</a>
+<img src="screenshot.png" alt="The CouponSweep popup listing stores and their last results, next to a coupon page with the progress panel" width="1280" height="800">
+
+<h2>Supported stores (44)</h2>
+<h3>Grocery, pharmacy, big-box and card offers</h3>
+<ul class="stores">
+<li><a href="stores/heb.html">H-E-B</a></li>
+<li><a href="stores/target.html">Target Circle</a></li>
+<li><a href="stores/cvs.html">CVS ExtraCare</a></li>
+<li><a href="stores/bjs.html">BJ&#39;s</a></li>
+<li><a href="stores/walgreens.html">Walgreens</a></li>
+<li><a href="stores/walmart.html">Walmart Cash</a></li>
+<li><a href="stores/chaseoffers.html">Chase Offers</a></li>
+</ul>
+<h3>Kroger stores</h3>
+<ul class="stores">
+<li><a href="stores/kroger.html">Kroger</a></li>
+<li><a href="stores/ralphs.html">Ralphs</a></li>
+<li><a href="stores/frysfood.html">Fry&#39;s</a></li>
+<li><a href="stores/kingsoopers.html">King Soopers</a></li>
+<li><a href="stores/fredmeyer.html">Fred Meyer</a></li>
+<li><a href="stores/smithsfoodanddrug.html">Smith&#39;s</a></li>
+<li><a href="stores/qfc.html">QFC</a></li>
+<li><a href="stores/dillons.html">Dillons</a></li>
+<li><a href="stores/citymarket.html">City Market</a></li>
+<li><a href="stores/bakersplus.html">Baker&#39;s</a></li>
+<li><a href="stores/gerbes.html">Gerbes</a></li>
+<li><a href="stores/jaycfoods.html">Jay C</a></li>
+<li><a href="stores/pay-less.html">Pay Less</a></li>
+<li><a href="stores/marianos.html">Mariano&#39;s</a></li>
+<li><a href="stores/picknsave.html">Pick &#39;n Save</a></li>
+<li><a href="stores/metromarket.html">Metro Market</a></li>
+<li><a href="stores/foodsco.html">Foods Co</a></li>
+<li><a href="stores/food4less.html">Food 4 Less</a></li>
+</ul>
+<h3>Albertsons stores</h3>
+<ul class="stores">
+<li><a href="stores/albertsons.html">Albertsons</a></li>
+<li><a href="stores/tomthumb.html">Tom Thumb</a></li>
+<li><a href="stores/safeway.html">Safeway</a></li>
+<li><a href="stores/vons.html">Vons</a></li>
+<li><a href="stores/randalls.html">Randalls</a></li>
+<li><a href="stores/jewelosco.html">Jewel-Osco</a></li>
+<li><a href="stores/acmemarkets.html">Acme</a></li>
+<li><a href="stores/shaws.html">Shaw&#39;s</a></li>
+<li><a href="stores/starmarket.html">Star Market</a></li>
+<li><a href="stores/pavilions.html">Pavilions</a></li>
+<li><a href="stores/andronicos.html">Andronico&#39;s</a></li>
+<li><a href="stores/carrsqc.html">Carrs</a></li>
+<li><a href="stores/haggen.html">Haggen</a></li>
+<li><a href="stores/kingsfoodmarkets.html">Kings</a></li>
+<li><a href="stores/balduccis.html">Balducci&#39;s</a></li>
+<li><a href="stores/shopunitedsupermarkets.html">United Supermarkets</a></li>
+<li><a href="stores/shopmarketstreet.html">Market Street</a></li>
+<li><a href="stores/shopamigos.html">Amigos</a></li>
+<li><a href="stores/shopalbertsonsmarket.html">Albertsons Market</a></li>
+</ul>
+
+<h2>Coming next</h2>
+<p>Publix, Meijer mPerks, ShopRite, Stop &amp; Shop, Giant Food, GIANT, Martin&#39;s, Food Lion, Hannaford, Dollar General, Hy-Vee, Harris Teeter, Wegmans, Amex Offers, Citi Merchant Offers, BankAmeriDeals, Capital One Offers. <a href="https://github.com/MrClumzy88/couponsweep/issues/new?template=store_request.yml">Ask for a store</a>.</p>
+
+</main>
+<footer>
+<p>CouponSweep is free, open-source software. It is unofficial and not affiliated with or endorsed by any store or bank named here; their names belong to their owners. Automated clipping may go against a store's terms of use, and a store could limit an account it thinks is automated. Use it only on your own account, at your own risk.</p>
+<p><a href="https://github.com/MrClumzy88/couponsweep">Source code</a> · <a href="https://github.com/MrClumzy88/couponsweep/blob/main/PRIVACY.md">Privacy policy</a> · <a href="https://github.com/MrClumzy88/couponsweep/issues">Report a problem</a></p>
+</footer>
+</body>
+</html>

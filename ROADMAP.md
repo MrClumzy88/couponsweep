@@ -16,7 +16,8 @@ Worked on weekly. The core (clipping at every supported store) stays free.
 - [x] **Run summary** after the daily run ("12 new coupons clipped at Kroger"), via a notification or the badge.
 - [ ] **BJ's: recover from "Please refresh the page"** by reloading and continuing instead of stopping.
 - [ ] **Firefox version**: background needs `background.scripts` alongside `service_worker`; publish on addons.mozilla.org.
-- [ ] **A page per store** on GitHub Pages ("How to clip all Hannaford digital coupons"), which is how OttoClipper ranks in search.
+- [x] **A page per store** ("How to clip all Kroger digital coupons"), which is how OttoClipper ranks in search. Built by `scripts/build-pages.mjs` into `docs/`.
+- [ ] **Turn on GitHub Pages**: repo Settings → Pages → Deploy from a branch → `main`, folder `/docs`. The site will be at https://mrclumzy88.github.io/couponsweep/. Then add the sitemap in Google Search Console. When the Web Store listing is live, point `INSTALL` in `scripts/build-pages.mjs` at it.
 
 ## Stores in development
 

@@ -156,12 +156,13 @@ on those stores' pages, and only when you start a run (or turn on the daily run)
 
 ```
 manifest.json        Chrome extension manifest (MV3)
-background.js        Opens store tabs, runs stores one at a time, saves results
+background.js        Opens store tabs, runs stores (different sites side by side), saves results
 stores.js            The list of supported stores
 popup.html/.js/.css  The toolbar popup
 icons/              Extension icons (icon.svg is the source)
 scripts/check.mjs    Checks run on every pull request
-docs/               README screenshot and its source page
+scripts/build-pages.mjs  Builds the help website in docs/ from stores.js
+docs/               Help website (index.html, stores/<id>.html), README screenshot
 content/bridge.js    Relays messages between the page and the extension
 content/runner.js    Shared progress panel, pacing and result counting
 content/<store>.js   One adapter per store
@@ -172,9 +173,11 @@ content/<store>.js   One adapter per store
 1. Add an entry to `stores.js`.
 2. Write `content/<id>.js`, which calls `window.__gbc.register({ id, name, isCouponPage, run })`.
    In `run(ctx)`, list the offers, call `ctx.found(total, alreadyClipped)`, then
-   call `ctx.clip(async () => …returns true on success…)` once per offer.
+   call `ctx.clip(async () => …returns true on success…, [minPause, maxPause], dollarValue)`
+   once per offer (`ctx.dollarsOff(text)` reads the value from "$1 off" text).
    Throw `ctx.fail("login" | "blocked" | "error", "message for the user")` to stop.
 3. Add the site to `host_permissions` and `content_scripts` in `manifest.json`.
+4. Run `node scripts/build-pages.mjs` to add the store's help page, then `node scripts/check.mjs`.
 
 `content/heb.js` is the simplest example to copy. Stores that share a backend
 share an adapter (all Albertsons-family banners use `content/albertsons.js`,
