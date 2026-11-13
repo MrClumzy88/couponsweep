@@ -27,7 +27,9 @@ page at run time.
   (`ctx.dollarsOff(textOrOffer)` reads "$X off" / "Save $X"; read it before
   clicking, since card text changes). It feeds the popup's monthly total.
 - New stores go in `stores.js`, `manifest.json` (host_permissions and
-  content_scripts) and the README's store table.
+  content_scripts) and the README's store table. Then run
+  `node scripts/build-pages.mjs` to rebuild the help website in `docs/`
+  (one page per store); `scripts/check.mjs` fails until it's rebuilt.
 
 ## Store notes (as of 2026-10-31)
 

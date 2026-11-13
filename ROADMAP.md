@@ -16,7 +16,8 @@ Worked on weekly. The core (clipping at every supported store) stays free.
 - [x] **Run summary** after the daily run ("12 new coupons clipped at Kroger"), via a notification or the badge.
 - [ ] **BJ's: recover from "Please refresh the page"** by reloading and continuing instead of stopping.
 - [ ] **Firefox version**: background needs `background.scripts` alongside `service_worker`; publish on addons.mozilla.org.
-- [ ] **A page per store** on GitHub Pages ("How to clip all Hannaford digital coupons"), which is how OttoClipper ranks in search.
+- [x] **A page per store** ("How to clip all Kroger digital coupons"), which is how OttoClipper ranks in search. Built by `scripts/build-pages.mjs` into `docs/`.
+- [ ] **Turn on GitHub Pages**: repo Settings → Pages → Deploy from a branch → `main`, folder `/docs`. The site will be at https://mrclumzy88.github.io/couponsweep/. Then add the sitemap in Google Search Console. When the Web Store listing is live, point `INSTALL` in `scripts/build-pages.mjs` at it.
 
 ## Stores in development
 
@@ -25,8 +26,8 @@ signed-in account to watch the site's own clip request, an adapter, manifest
 entries, then `comingSoon` removed. Check each `url` in stores.js; several are
 guesses.
 
-- [ ] Albertsons banners not yet listed: United Supermarkets, Market Street, Amigos. Likely the same `/abs/pub/web/j4u/` API, so maybe only stores.js + manifest.
-- [ ] Ahold Delhaize: Stop & Shop, Giant Food, GIANT, Martin's, Food Lion, Hannaford. Probably one shared backend, so one adapter.
+- [x] United Family stores on the Albertsons system: United Supermarkets, Market Street, Amigos, Albertsons Market (now `shop<name>.com`; same `window.AB`/`SWY`, `/loyalty/coupons-deals` and banner = domain). Added 2026-11-13; still to try with a signed-in account.
+- [ ] Ahold Delhaize: Stop & Shop, Giant Food, GIANT, Martin's, Food Lion, Hannaford. Probably one shared backend, so one adapter. Checked 2026-11-13 (signed out): Stop & Shop's menu links to `/coupons`; Giant Food, GIANT, Martin's and Food Lion send `/coupons` to their home page when signed out (find the real path signed in); Food Lion lives at `foodlion.com` (no www); Hannaford showed a bot check, so it wasn't looked at.
 - [ ] Harris Teeter (Kroger-owned, separate site).
 - [ ] Publix, Meijer mPerks, ShopRite, Dollar General, Hy-Vee, Wegmans.
 - [x] Chase Offers (the card the page has open; other cards still to do).

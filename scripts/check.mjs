@@ -3,7 +3,7 @@
 //
 // Checks: every script parses, the manifest is valid and only points at files
 // that exist, store ids are unique, the popup's version matches the manifest's,
-// and nothing that looks like personal data (email addresses, long account or
+// the help website in docs/ is up to date with stores.js, and nothing that looks like personal data (email addresses, long account or
 // card numbers, tokens) has been added.
 
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
@@ -60,6 +60,19 @@ const { STORES } = await import(new URL("../stores.js", import.meta.url));
 const ids = STORES.map((s) => s.id);
 for (const id of new Set(ids.filter((id, i) => ids.indexOf(id) !== i))) fail(`store id "${id}" is used twice`);
 for (const s of STORES) if (!s.comingSoon && !existsSync(join(root, "content", `${s.adapter}.js`))) fail(`store ${s.id} uses missing adapter content/${s.adapter}.js`);
+
+// 3b. The help website in docs/ matches stores.js (rebuild it with
+// `node scripts/build-pages.mjs`).
+const { pages } = await import(new URL("./build-pages.mjs", import.meta.url));
+const expected = pages();
+for (const [path, text] of Object.entries(expected)) {
+  const file = join(root, "docs", path);
+  const current = existsSync(file) ? readFileSync(file, "utf8").replace(/\r\n/g, "\n") : null;
+  if (current !== text) fail(`docs/${path} is ${current == null ? "missing" : "out of date"}; run node scripts/build-pages.mjs`);
+}
+for (const f of existsSync(join(root, "docs", "stores")) ? readdirSync(join(root, "docs", "stores")) : []) {
+  if (!(`stores/${f}` in expected)) fail(`docs/stores/${f} is for a store that isn't supported any more; delete it`);
+}
 
 // 4. Nothing that looks like personal data.
 const allowedEmails = /noreply@anthropic\.com|@users\.noreply\.github\.com/i;

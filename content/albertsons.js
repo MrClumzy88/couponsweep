@@ -1,5 +1,8 @@
 // Albertsons-family adapter: Albertsons, Tom Thumb, Safeway, Vons, Randalls,
-// Jewel-Osco, Acme and the other banners all share the "for U" backend.
+// Jewel-Osco, Acme, the United Family stores and the other banners all share
+// the "for U" backend. The banner name the API wants is the second-level
+// domain ("safeway", "shopunitedsupermarkets"), same as the site's own
+// `AB.userInfo.banner`.
 //
 // Listing: GET /abs/pub/web/j4u/api/ecomgallery returns every offer across all
 // programs in one call (`offers` keyed by offer id, `status` "C" once clipped).
@@ -52,6 +55,8 @@
     randalls: "Randalls", jewelosco: "Jewel-Osco", acmemarkets: "Acme", shaws: "Shaw's",
     starmarket: "Star Market", pavilions: "Pavilions", andronicos: "Andronico's",
     carrsqc: "Carrs", haggen: "Haggen", kingsfoodmarkets: "Kings", balduccis: "Balducci's",
+    shopunitedsupermarkets: "United Supermarkets", shopmarketstreet: "Market Street",
+    shopamigos: "Amigos", shopalbertsonsmarket: "Albertsons Market",
   };
   const banner = location.hostname.split(".").slice(-2, -1)[0];
 

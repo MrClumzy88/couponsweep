@@ -22,6 +22,11 @@ const albertsonsFamily = [
   ["haggen", "Haggen", "haggen.com"],
   ["kingsfoodmarkets", "Kings", "kingsfoodmarkets.com"],
   ["balduccis", "Balducci's", "balduccis.com"],
+  // The United Family stores in Texas, on the same system since 2026.
+  ["shopunitedsupermarkets", "United Supermarkets", "shopunitedsupermarkets.com"],
+  ["shopmarketstreet", "Market Street", "shopmarketstreet.com"],
+  ["shopamigos", "Amigos", "shopamigos.com"],
+  ["shopalbertsonsmarket", "Albertsons Market", "shopalbertsonsmarket.com"],
 ].map(([id, name, domain]) => ({
   id, name, adapter: "albertsons", host: `www.${domain}`, url: `https://www.${domain}/loyalty/coupons-deals`,
 }));
@@ -60,13 +65,12 @@ const inDevelopment = [
   ["giantfood", "Giant Food", "giantfood.com", "https://giantfood.com/coupons"],
   ["giantfoodstores", "GIANT", "giantfoodstores.com", "https://giantfoodstores.com/coupons"],
   ["martins", "Martin's", "martinsfoods.com", "https://martinsfoods.com/coupons"],
-  ["foodlion", "Food Lion", "www.foodlion.com", "https://www.foodlion.com/coupons"],
+  ["foodlion", "Food Lion", "foodlion.com", "https://foodlion.com/coupons"],
   ["hannaford", "Hannaford", "www.hannaford.com", "https://www.hannaford.com/coupons"],
   ["dollargeneral", "Dollar General", "www.dollargeneral.com", "https://www.dollargeneral.com/deals/coupons"],
   ["hyvee", "Hy-Vee", "www.hy-vee.com", "https://www.hy-vee.com/deals/coupons"],
   ["harristeeter", "Harris Teeter", "www.harristeeter.com", "https://www.harristeeter.com/savings/cl/coupons/"],
   ["wegmans", "Wegmans", "www.wegmans.com", "https://www.wegmans.com/"],
-  ["unitedsupermarkets", "United Supermarkets", "www.unitedsupermarkets.com", "https://www.unitedsupermarkets.com/"],
   ["amexoffers", "Amex Offers", "global.americanexpress.com", "https://global.americanexpress.com/offers"],
   ["citioffers", "Citi Merchant Offers", "online.citi.com", "https://online.citi.com/"],
   ["bofadeals", "BankAmeriDeals", "secure.bankofamerica.com", "https://www.bankofamerica.com/"],

@@ -31,10 +31,12 @@
   </details>
 
   <button id="run-all" class="primary">Clip all checked stores</button>
+  <button id="retry" class="retry" hidden></button>
   <p id="live" class="live" hidden></p>
   <p id="month" class="month" hidden></p>
 
   <label class="daily"><input type="checkbox" id="daily"> Run once a day automatically</label>
+  <label class="daily sub-option">At <select id="daily-hour" title="When the daily run starts. Chrome has to be open then; if it isn't, the run starts next time Chrome opens."><option value="">any time</option></select></label>
   <label class="daily sub-option"><input type="checkbox" id="notify"> Notify me when the daily run finishes</label>
 
   <a id="donate" class="donate" target="_blank" rel="noopener" hidden>♥ CouponSweep is free. Chip in to keep it going</a>
