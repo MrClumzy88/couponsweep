@@ -8,6 +8,8 @@ const tpl = document.getElementById("store-row");
 const live = document.getElementById("live");
 const runAll = document.getElementById("run-all");
 const daily = document.getElementById("daily");
+const notify = document.getElementById("notify");
+const month = document.getElementById("month");
 const notice = document.getElementById("notice");
 
 // Donation page (GitHub Sponsors, Ko-fi…). The link stays hidden until this
@@ -33,7 +35,31 @@ function saveSettings(patch) {
 
 const isMine = (s) => !s.comingSoon && (settings.enabled?.[s.id] || settings.pinned?.[s.id]);
 
-function render({ results = {}, live: now }) {
+// Background versions before 0.8 stored { store, text }; now it's { storeId: text }.
+function liveMap(live) {
+  if (!live || typeof live !== "object") return {};
+  return "store" in live && "text" in live ? { [live.store]: live.text } : live;
+}
+
+const money = (n) => `$${n.toFixed(2).replace(/\.00$/, "")}`;
+
+// "This month: 312 coupons clipped, at least $187 off."
+function renderMonth(history = []) {
+  const start = new Date();
+  start.setDate(1);
+  start.setHours(0, 0, 0, 0);
+  const runs = history.filter((h) => h.at >= start.getTime());
+  const clipped = runs.reduce((n, h) => n + (h.clipped || 0), 0);
+  const savings = runs.reduce((n, h) => n + (h.savings || 0), 0);
+  month.hidden = !clipped;
+  month.textContent = `This month: ${clipped} coupon${clipped === 1 ? "" : "s"} clipped` +
+    (savings >= 1 ? `, at least ${money(savings)} off.` : ".");
+  month.title = "Coupons CouponSweep clipped this month. The dollar amount only counts coupons that show a plain \"$ off\" value, so the real figure is higher.";
+}
+
+function render({ results = {}, live: running, history }) {
+  const now = liveMap(running);
+  const busy = Object.keys(now).length > 0;
   // "Your stores" are the checked or pinned ones, pinned first, then in the
   // order the user dragged them into.
   const ordered = sortStores(STORES, settings);
@@ -52,21 +78,25 @@ function render({ results = {}, live: now }) {
 
     const r = results[s.id];
     const p = row.querySelector(".result");
-    const running = now?.store === s.id;
+    const running = s.id in now;
     p.className = `result ${running ? "running" : r?.status || ""}`;
     p.textContent = s.comingSoon ? "In development."
-      : running ? now.text
+      : running ? now[s.id]
       : r ? `${r.message} · ${ago(r.at)}` : "Not run yet.";
-    row.querySelector(".run").disabled = !!now || !!s.comingSoon || !settings.acknowledged;
+    row.querySelector(".run").disabled = busy || !!s.comingSoon || !settings.acknowledged;
   }
   empty.hidden = count > 0;
   if (!count) moreBox.open = true;
   daily.checked = settings.daily ?? false;
   daily.disabled = !settings.acknowledged;
+  notify.checked = settings.notify ?? true;
+  notify.disabled = !settings.acknowledged || !settings.daily;
   notice.hidden = !!settings.acknowledged;
-  runAll.disabled = !!now || !settings.acknowledged || !STORES.some((s) => settings.enabled?.[s.id] && !s.comingSoon);
-  live.hidden = !now;
-  if (now) live.textContent = `Working on ${STORES.find((s) => s.id === now.store)?.name || now.store}…`;
+  runAll.disabled = busy || !settings.acknowledged || !STORES.some((s) => settings.enabled?.[s.id] && !s.comingSoon);
+  live.hidden = !busy;
+  const names = Object.keys(now).map((id) => STORES.find((s) => s.id === id)?.name || id);
+  if (busy) live.textContent = `Working on ${names.join(", ")}…`;
+  renderMonth(history);
 }
 
 // ── Drag to reorder "Your stores" ─────────────────────────────────────────
@@ -128,6 +158,7 @@ for (const s of STORES) {
 }
 runAll.addEventListener("click", () => chrome.runtime.sendMessage({ type: "run" }));
 daily.addEventListener("change", () => saveSettings({ daily: daily.checked }));
+notify.addEventListener("change", () => saveSettings({ notify: notify.checked }));
 document.getElementById("accept").addEventListener("click", () => saveSettings({ acknowledged: true }));
 
 // ── "Update available" notice ─────────────────────────────────────────────
@@ -165,7 +196,7 @@ async function checkForUpdate() {
 checkForUpdate();
 
 const refresh = async () => {
-  const data = await chrome.storage.local.get(["settings", "results", "live"]);
+  const data = await chrome.storage.local.get(["settings", "results", "live", "history"]);
   settings = data.settings || {};
   render(data);
 };

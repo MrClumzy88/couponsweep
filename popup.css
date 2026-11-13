@@ -21,6 +21,8 @@
   }
 }
 * { box-sizing: border-box; }
+/* Classes below set `display`, which would otherwise override `hidden`. */
+[hidden] { display: none !important; }
 body {
   width: 320px;
   margin: 0;
@@ -101,3 +103,5 @@ summary { cursor: pointer; color: var(--muted); padding: 4px 0; }
 #more-stores { margin: 4px 0 0; max-height: 260px; overflow-y: auto; }
 #more-stores .run, #more-stores .result { display: none; }
 .daily { display: flex; gap: 6px; align-items: center; margin-top: 12px; color: var(--muted); }
+.daily.sub-option { margin-top: 4px; padding-left: 20px; }
+.month { margin: 10px 0 0; font-weight: 600; }

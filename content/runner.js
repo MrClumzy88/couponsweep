@@ -4,11 +4,35 @@
 // store's offers through the site's own API, clips the unclipped ones with
 // ctx.clip(), and returns nothing; the runner keeps the counts. Adapters
 // throw ctx.fail("login" | "blocked" | "error", message) to stop early.
+// When an adapter knows what an offer is worth, it passes the dollar amount
+// to ctx.clip() (ctx.dollarsOff() reads it from offer text); the runner adds
+// up the clipped ones for the popup's savings total.
 
 (() => {
   if (window.__gbc) return;
 
   const between = (min, max) => min + Math.random() * (max - min);
+
+  // The dollar amount an offer takes off, from its text ("$1.50 off",
+  // "Save $2", "$5 ExtraBucks"), or 0 when there isn't a clear one: percent
+  // offers, prices on their own and anything odd count for nothing, so the
+  // total is a floor. Takes strings or offer objects (reads their top-level
+  // string fields).
+  const OFF = [
+    /\$\s?(\d{1,3}(?:\.\d{1,2})?)\s*(?:off|extrabucks)\b/i,
+    /\bsave\s+\$\s?(\d{1,3}(?:\.\d{1,2})?)/i,
+  ];
+  function dollarsOff(...sources) {
+    const texts = sources.flatMap((s) =>
+      typeof s === "string" ? [s] : s && typeof s === "object" ? Object.values(s).filter((v) => typeof v === "string") : []);
+    for (const re of OFF) {
+      for (const t of texts) {
+        const v = Number(t.match(re)?.[1]);
+        if (v > 0 && v < 100) return v;
+      }
+    }
+    return 0;
+  }
 
   // Chrome throttles timers in background tabs (to about once a minute after
   // five minutes hidden), which would stall the daily run in its background
@@ -131,7 +155,7 @@
     stopRequested = false;
     document.getElementById("gbc-fab")?.remove();
 
-    const result = { store: adapter.id, status: "ok", total: 0, already: 0, clipped: 0, failed: 0, message: "", auto };
+    const result = { store: adapter.id, status: "ok", total: 0, already: 0, clipped: 0, failed: 0, savings: 0, message: "", auto };
     const report = (text) => {
       const todo = result.total - result.already;
       const done = result.clipped + result.failed;
@@ -142,6 +166,7 @@
     const ctx = {
       sleep,
       between,
+      dollarsOff,
       fail: (status, message) => new StopRun(status, message),
       // Adapters call these as they discover offers.
       found(total, already) {
@@ -151,13 +176,16 @@
       },
       // Clips one offer with a human-ish pause first. `fn` returns true on
       // success, false (or throws) on a per-offer failure. Throwing a StopRun
-      // ends the whole run.
-      async clip(fn, gap = [400, 900]) {
+      // ends the whole run. `value` is the offer's dollar amount, if known.
+      async clip(fn, gap = [400, 900], value = 0) {
         if (stopRequested) throw new StopRun("stopped", "Stopped.");
         await sleep(between(gap[0], gap[1]));
         let ok = false;
         try { ok = await fn(); } catch (e) { if (e instanceof StopRun) throw e; console.log("[CouponSweep] clip error", e); }
-        if (ok) result.clipped++; else result.failed++;
+        if (ok) {
+          result.clipped++;
+          if (Number.isFinite(value) && value > 0 && value < 100) result.savings += value;
+        } else result.failed++;
         report(`Clipping… ${result.clipped} clipped${result.failed ? `, ${result.failed} failed` : ""}.`);
         return ok;
       },

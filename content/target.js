@@ -108,7 +108,7 @@
           if (r.status === 435) throw ctx.fail("blocked", "Target wants a quick human check. Reload the deals page, complete it if asked, then run again.");
           if (!r.ok) console.log("[CouponSweep] Target save failed", o.id, r.status, await r.text().catch(() => ""));
           return r.ok;
-        }, [900, 1800]);
+        }, [900, 1800], ctx.dollarsOff(o));
         failStreak = ok ? 0 : failStreak + 1;
         // Usually means the saved-offers limit was reached.
         if (failStreak >= 5) throw ctx.fail("error", "Target stopped accepting saves (you may have hit its saved-offer limit).");

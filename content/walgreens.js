@@ -58,12 +58,13 @@
 
       let failStreak = 0;
       for (const b of todo) {
+        const value = ctx.dollarsOff(couponText(b)); // Read before the button goes.
         const ok = await ctx.clip(async () => {
           if (!b.isConnected) return false;
           b.scrollIntoView({ block: "center" });
           b.click();
           return waitFor(ctx, () => clipped(b), 6000);
-        }, [700, 1400]);
+        }, [700, 1400], value);
         failStreak = ok ? 0 : failStreak + 1;
         if (failStreak >= 5) {
           throw ctx.fail("error", "Walgreens stopped accepting clips. Your account may be full (it holds up to 200 clipped coupons).");

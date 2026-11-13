@@ -82,7 +82,7 @@
           if (/TooManyCouponsOnCard|maximum number of coupons/i.test(text)) throw ctx.fail("ok", "Your Kroger card is full (Kroger limits how many coupons it holds). The most valuable ones were clipped first.");
           console.log("[CouponSweep] Kroger clip failed", c.id, r.status, text);
           return false;
-        }, [600, 1200]);
+        }, [600, 1200], Number(c.savings) || ctx.dollarsOff(c));
         failStreak = ok ? 0 : failStreak + 1;
         if (failStreak >= 5) throw ctx.fail("error", "Kroger stopped accepting clips. Your card may be full; check the console for details.");
       }

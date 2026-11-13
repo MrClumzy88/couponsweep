@@ -22,7 +22,8 @@ and sends nothing anywhere except to the store itself.
 **Why people use it**
 
 - **Clip all coupons at once.** One run clips every available coupon, often hundreds per store, while you do something else.
-- **One button for every store.** Check the stores you shop at and click *Clip all checked stores*, or let it run once a day.
+- **One button for every store.** Check the stores you shop at and click *Clip all checked stores*, or let it run once a day. Different stores run side by side, so *Clip all* finishes sooner.
+- **See what you saved.** The popup keeps a running total for the month ("This month: 312 coupons clipped, at least $187 off"), and the daily run sends a short summary, including any store that needs you to sign in again.
 - **Smart about limits.** Where a store caps how many coupons a card can hold (Kroger, Walgreens), the biggest savings get clipped first.
 - **Never sees your password, and you can check.** It works in the session you're already signed in with. No account, no servers, no tracking, and the code is all here. See the [privacy policy](PRIVACY.md).
 - **Gentle on your account.** One coupon at a time with pauses, and it stops the moment a store pushes back.
@@ -78,9 +79,14 @@ To update without losing your store choices and history:
 
 Optional: check **Run once a day automatically** in the popup. Chrome has to be
 open at the time; tabs it opens close themselves when a run finishes cleanly.
+When it's done you get a notification saying what was clipped and which stores,
+if any, need you (for example to sign in again); click it to open that store.
+Turn that off with **Notify me when the daily run finishes**.
 
 The popup remembers each store's last result, for example
-*"Clipped 212 of 214 new offers (2 failed) · 3 h ago"*.
+*"Clipped 212 of 214 new offers (2 failed) · 3 h ago"*, and a total for the
+month. The dollar figure only counts coupons that show a plain "$ off" amount
+(not percent-off ones), so what you actually save is higher.
 
 ## FAQ
 
@@ -128,7 +134,9 @@ store's own buttons instead.)
 
 1. Fetch the full list of offers with their clipped/unclipped status.
 2. Send one clip request per unclipped offer, with a short random pause between
-   them so it isn't a burst of traffic.
+   them so it isn't a burst of traffic. Different stores' websites run at the
+   same time, but each website only ever sees one clip at a time (stores that
+   share a coupon system, like the Kroger banners, take turns).
 3. Stop right away, with a plain message, if the site says you're signed out,
    asks for a human check (CAPTCHA), or starts refusing requests. It never
    tries to get around those; complete the check yourself and run it again.
