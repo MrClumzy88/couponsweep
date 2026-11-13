@@ -249,7 +249,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (resolve) resolve(msg.data);
     else record(msg.data.store, msg.data); // Started from the on-page button rather than the popup.
   } else if (msg.type === "run") {
-    getSettings().then(({ checkedInOrder }) => enqueue(msg.store ? [msg.store] : checkedInOrder, false));
+    // One store, a list of stores (the popup's "try again"), or every checked store.
+    const ids = Array.isArray(msg.stores) ? msg.stores.filter((id) => typeof id === "string") : msg.store ? [msg.store] : null;
+    getSettings().then(({ checkedInOrder }) => enqueue(ids || checkedInOrder, false));
     sendResponse({ ok: true });
   } else if (msg.type === "settings-changed") {
     syncAlarm();

@@ -68,6 +68,14 @@ button {
   cursor: pointer;
 }
 button:disabled { opacity: .5; cursor: default; }
+button.retry {
+  width: 100%;
+  margin-top: 6px;
+  padding: 7px;
+  background: none;
+  border: 1px solid var(--warn);
+  font-weight: 600;
+}
 button.primary {
   width: 100%;
   padding: 9px;

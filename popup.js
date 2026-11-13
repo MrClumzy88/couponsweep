@@ -7,6 +7,10 @@ const empty = document.getElementById("empty");
 const tpl = document.getElementById("store-row");
 const live = document.getElementById("live");
 const runAll = document.getElementById("run-all");
+const retry = document.getElementById("retry");
+// Checked stores whose last run stopped on something the user can fix.
+const NEEDS_USER = new Set(["login", "blocked", "error"]);
+let retryIds = [];
 const daily = document.getElementById("daily");
 const dailyHour = document.getElementById("daily-hour");
 for (let h = 0; h < 24; h++) {
@@ -101,6 +105,13 @@ function render({ results = {}, live: running, history }) {
   dailyHour.disabled = !settings.acknowledged || !settings.daily;
   notice.hidden = !!settings.acknowledged;
   runAll.disabled = busy || !settings.acknowledged || !STORES.some((s) => settings.enabled?.[s.id] && !s.comingSoon);
+  const stopped = ordered.filter((s) => settings.enabled?.[s.id] && !s.comingSoon && NEEDS_USER.has(results[s.id]?.status));
+  retryIds = stopped.map((s) => s.id);
+  retry.hidden = busy || !settings.acknowledged || !stopped.length;
+  retry.textContent = stopped.length === 1
+    ? `↻ Try ${stopped[0].name} again`
+    : `↻ Try the ${stopped.length} stores that stopped again`;
+  retry.title = `Sign in or finish any check the store asked for first. ${stopped.map((s) => s.name).join(", ")}`;
   live.hidden = !busy;
   const names = Object.keys(now).map((id) => STORES.find((s) => s.id === id)?.name || id);
   if (busy) live.textContent = `Working on ${names.join(", ")}…`;
@@ -165,6 +176,7 @@ for (const s of STORES) {
   rows[s.id] = row;
 }
 runAll.addEventListener("click", () => chrome.runtime.sendMessage({ type: "run" }));
+retry.addEventListener("click", () => chrome.runtime.sendMessage({ type: "run", stores: retryIds }));
 daily.addEventListener("change", () => saveSettings({ daily: daily.checked }));
 dailyHour.addEventListener("change", () => saveSettings({ dailyHour: dailyHour.value === "" ? null : Number(dailyHour.value) }));
 notify.addEventListener("change", () => saveSettings({ notify: notify.checked }));
