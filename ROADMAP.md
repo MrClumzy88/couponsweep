@@ -25,8 +25,8 @@ signed-in account to watch the site's own clip request, an adapter, manifest
 entries, then `comingSoon` removed. Check each `url` in stores.js; several are
 guesses.
 
-- [ ] Albertsons banners not yet listed: United Supermarkets, Market Street, Amigos. Likely the same `/abs/pub/web/j4u/` API, so maybe only stores.js + manifest.
-- [ ] Ahold Delhaize: Stop & Shop, Giant Food, GIANT, Martin's, Food Lion, Hannaford. Probably one shared backend, so one adapter.
+- [x] United Family stores on the Albertsons system: United Supermarkets, Market Street, Amigos, Albertsons Market (now `shop<name>.com`; same `window.AB`/`SWY`, `/loyalty/coupons-deals` and banner = domain). Added 2026-11-13; still to try with a signed-in account.
+- [ ] Ahold Delhaize: Stop & Shop, Giant Food, GIANT, Martin's, Food Lion, Hannaford. Probably one shared backend, so one adapter. Checked 2026-11-13 (signed out): Stop & Shop's menu links to `/coupons`; Giant Food, GIANT, Martin's and Food Lion send `/coupons` to their home page when signed out (find the real path signed in); Food Lion lives at `foodlion.com` (no www); Hannaford showed a bot check, so it wasn't looked at.
 - [ ] Harris Teeter (Kroger-owned, separate site).
 - [ ] Publix, Meijer mPerks, ShopRite, Dollar General, Hy-Vee, Wegmans.
 - [x] Chase Offers (the card the page has open; other cards still to do).
