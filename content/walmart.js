@@ -108,13 +108,14 @@
         ctx.found(total, already);
 
         for (const card of onPage.filter(claimable)) {
+          const value = ctx.dollarsOff(card.innerText); // Read before the card changes.
           tally(await ctx.clip(async () => {
             card.scrollIntoView({ block: "center" });
             button(card).click();
             if (!(await waitFor(ctx, () => claimed(card), 5000))) return false;
             await ctx.sleep(1200);
             return claimed(card);
-          }, [700, 1400]));
+          }, [700, 1400], value));
         }
 
         const next = nextButton();
@@ -163,6 +164,7 @@
             // One offer often covers several products; once it's claimed on
             // one card the others may already show it.
             if (!getLabel(tile)) continue;
+            const value = ctx.dollarsOff(getLabel(tile).innerText);
             tally(await ctx.clip(async () => {
               if (!getLabel(tile)) return tileClaimed(tile);
               tile.scrollIntoView({ block: "center" });
@@ -170,7 +172,7 @@
               if (!(await waitFor(ctx, () => tileClaimed(tile), 5000))) return false;
               await ctx.sleep(1200);
               return tileClaimed(tile);
-            }, [700, 1400]));
+            }, [700, 1400], value));
           }
 
           const next = searchNext();

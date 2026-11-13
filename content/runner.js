@@ -14,12 +14,12 @@
   const between = (min, max) => min + Math.random() * (max - min);
 
   // The dollar amount an offer takes off, from its text ("$1.50 off",
-  // "Save $2", "$5 ExtraBucks"), or 0 when there isn't a clear one: percent
-  // offers, prices on their own and anything odd count for nothing, so the
-  // total is a floor. Takes strings or offer objects (reads their top-level
+  // "Save $2", "$5 ExtraBucks", "Get $3 Walmart Cash"), or 0 when there isn't
+  // a clear one: percent offers, prices on their own and anything odd count
+  // for nothing, so the total is a floor. Takes strings or offer objects (reads their top-level
   // string fields).
   const OFF = [
-    /\$\s?(\d{1,3}(?:\.\d{1,2})?)\s*(?:off|extrabucks)\b/i,
+    /\$\s?(\d{1,3}(?:\.\d{1,2})?)\s*(?:off|extrabucks|(?:in\s+)?walmart cash)\b/i,
     /\bsave\s+\$\s?(\d{1,3}(?:\.\d{1,2})?)/i,
   ];
   function dollarsOff(...sources) {
