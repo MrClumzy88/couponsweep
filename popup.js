@@ -8,6 +8,12 @@ const tpl = document.getElementById("store-row");
 const live = document.getElementById("live");
 const runAll = document.getElementById("run-all");
 const daily = document.getElementById("daily");
+const dailyHour = document.getElementById("daily-hour");
+for (let h = 0; h < 24; h++) {
+  // Labels in the user's own clock format ("6 AM" or "06:00").
+  const label = new Date(2000, 0, 1, h).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  dailyHour.append(new Option(label, String(h)));
+}
 const notify = document.getElementById("notify");
 const month = document.getElementById("month");
 const notice = document.getElementById("notice");
@@ -91,6 +97,8 @@ function render({ results = {}, live: running, history }) {
   daily.disabled = !settings.acknowledged;
   notify.checked = settings.notify ?? true;
   notify.disabled = !settings.acknowledged || !settings.daily;
+  dailyHour.value = Number.isInteger(settings.dailyHour) ? String(settings.dailyHour) : "";
+  dailyHour.disabled = !settings.acknowledged || !settings.daily;
   notice.hidden = !!settings.acknowledged;
   runAll.disabled = busy || !settings.acknowledged || !STORES.some((s) => settings.enabled?.[s.id] && !s.comingSoon);
   live.hidden = !busy;
@@ -158,6 +166,7 @@ for (const s of STORES) {
 }
 runAll.addEventListener("click", () => chrome.runtime.sendMessage({ type: "run" }));
 daily.addEventListener("change", () => saveSettings({ daily: daily.checked }));
+dailyHour.addEventListener("change", () => saveSettings({ dailyHour: dailyHour.value === "" ? null : Number(dailyHour.value) }));
 notify.addEventListener("change", () => saveSettings({ notify: notify.checked }));
 document.getElementById("accept").addEventListener("click", () => saveSettings({ acknowledged: true }));
 

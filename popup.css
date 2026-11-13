@@ -104,4 +104,5 @@ summary { cursor: pointer; color: var(--muted); padding: 4px 0; }
 #more-stores .run, #more-stores .result { display: none; }
 .daily { display: flex; gap: 6px; align-items: center; margin-top: 12px; color: var(--muted); }
 .daily.sub-option { margin-top: 4px; padding-left: 20px; }
+.daily select { font: inherit; color: var(--fg); background: var(--btn); border: 1px solid var(--line); border-radius: 4px; padding: 1px 4px; }
 .month { margin: 10px 0 0; font-weight: 600; }

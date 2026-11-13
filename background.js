@@ -10,6 +10,7 @@
 //
 // Storage (chrome.storage.local):
 //   settings: { enabled: {heb: true, …}, pinned: {heb: true, …}, order: [ids], daily: false,
+//              dailyHour: 0–23 to run at that hour, or null for any time,
 //              notify: true (summary notification after the daily run),
 //              acknowledged: true once the user accepts the popup's notice }
 //   results:  { heb: {status, total, already, clipped, failed, savings, message, at}, … }
@@ -31,6 +32,7 @@ async function getSettings() {
   return {
     enabled: Object.fromEntries(STORES.map((s) => [s.id, settings?.enabled?.[s.id] ?? false])),
     daily: settings?.daily ?? false,
+    dailyHour: Number.isInteger(settings?.dailyHour) ? settings.dailyHour : null,
     notify: settings?.notify ?? true,
     // Checked stores in the order the popup shows them.
     checkedInOrder: sortStores(STORES, settings).map((s) => s.id).filter((id) => settings?.enabled?.[id]),
@@ -207,14 +209,31 @@ chrome.notifications?.onClicked.addListener(async (id) => {
   chrome.notifications.clear(id);
 });
 
-// Create the daily alarm only when it's missing: re-creating it on every
-// settings change would restart the 24-hour clock and fire a run a minute
-// later each time.
+// The next time the clock reads `hour`:00, local time.
+function nextAt(hour, from = Date.now()) {
+  const d = new Date(from);
+  d.setHours(hour, 0, 0, 0);
+  if (d.getTime() <= from) d.setDate(d.getDate() + 1);
+  return d.getTime();
+}
+
+// Only re-create the daily alarm when it's missing or set up differently:
+// re-creating it on every settings change would restart the clock and fire a
+// run a minute later each time.
+//   "Any time" (dailyHour null): repeats every 24 hours from when it was turned on.
+//   At an hour: a one-off alarm for the next time the clock reads that hour,
+//   set again after each run, so it stays on the hour across daylight saving.
 async function syncAlarm() {
-  const { daily } = await getSettings();
+  const { daily, dailyHour } = await getSettings();
   if (!daily) return chrome.alarms.clear(DAILY_ALARM);
-  if (!(await chrome.alarms.get(DAILY_ALARM))) {
-    chrome.alarms.create(DAILY_ALARM, { periodInMinutes: 24 * 60, delayInMinutes: 1 });
+  const alarm = await chrome.alarms.get(DAILY_ALARM);
+  if (dailyHour == null) {
+    if (!alarm?.periodInMinutes) chrome.alarms.create(DAILY_ALARM, { periodInMinutes: 24 * 60, delayInMinutes: 1 });
+    return;
+  }
+  const at = alarm && !alarm.periodInMinutes && new Date(alarm.scheduledTime);
+  if (!at || at.getHours() !== dailyHour || at.getMinutes() !== 0) {
+    chrome.alarms.create(DAILY_ALARM, { when: nextAt(dailyHour) });
   }
 }
 
@@ -239,7 +258,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name !== DAILY_ALARM) return;
-  const { checkedInOrder } = await getSettings();
+  const { checkedInOrder, dailyHour } = await getSettings();
+  // A one-off alarm is gone once it fires; set tomorrow's.
+  if (dailyHour != null) chrome.alarms.create(DAILY_ALARM, { when: nextAt(dailyHour) });
   enqueue(checkedInOrder.filter((id) => !STORES.find((s) => s.id === id)?.noDaily), true);
 });
 
@@ -247,4 +268,7 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.set({ live: null });
   syncAlarm();
 });
-chrome.runtime.onStartup.addListener(() => chrome.storage.local.set({ live: null }));
+chrome.runtime.onStartup.addListener(() => {
+  chrome.storage.local.set({ live: null });
+  syncAlarm();
+});

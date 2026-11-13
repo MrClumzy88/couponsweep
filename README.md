@@ -77,8 +77,10 @@ To update without losing your store choices and history:
    - open the store's coupons page and click the green **✂ Clip all coupons** button in the corner.
 4. A small panel shows progress. Leave the tab open until it says it's done.
 
-Optional: check **Run once a day automatically** in the popup. Chrome has to be
-open at the time; tabs it opens close themselves when a run finishes cleanly.
+Optional: check **Run once a day automatically** in the popup, and pick a time
+under it if you like (say 6 AM, before you shop). Chrome has to be open at the
+time; if it isn't, the run starts next time Chrome opens. Tabs it opens close
+themselves when a run finishes cleanly.
 When it's done you get a notification saying what was clipped and which stores,
 if any, need you (for example to sign in again); click it to open that store.
 Turn that off with **Notify me when the daily run finishes**.
