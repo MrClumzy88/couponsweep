@@ -9,7 +9,7 @@
 
 import { STORES, runnable, sortStores } from "./stores.js";
 
-const RUN_TIMEOUT_MS = 30 * 60 * 1000;
+const RUN_TIMEOUT_MS = 60 * 60 * 1000; // Walmart's search pass can run long.
 const DAILY_ALARM = "daily-clip";
 const pending = new Map(); // tabId -> resolve(result)
 let queue = Promise.resolve();
