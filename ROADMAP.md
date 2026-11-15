@@ -17,6 +17,11 @@ Worked on weekly. The core (clipping at every supported store) stays free.
 - [ ] **BJ's: recover from "Please refresh the page"** by reloading and continuing instead of stopping.
 - [ ] **Firefox version**: background needs `background.scripts` alongside `service_worker`; publish on addons.mozilla.org.
 - [x] **A page per store** ("How to clip all Kroger digital coupons"), which is how OttoClipper ranks in search. Built by `scripts/build-pages.mjs` into `docs/`.
+- [ ] **Sunday newspaper inserts**: paper manufacturer coupons can't be
+  clipped, so show them instead: this week's inserts (SmartSource, Save,
+  P&G brandSAVER), their best coupons, and which ones match a sale or a
+  clipped store coupon. Find a source we're allowed to use (insert previews
+  are other sites' work; don't scrape and republish them).
 - [ ] **Turn on GitHub Pages**: repo Settings → Pages → Deploy from a branch → `main`, folder `/docs`. The site will be at https://mrclumzy88.github.io/couponsweep/. Then add the sitemap in Google Search Console. When the Web Store listing is live, point `INSTALL` in `scripts/build-pages.mjs` at it.
 
 ## Stores in development
@@ -47,6 +52,12 @@ The basic clipping stays free. Ideas for an optional upgrade:
 - "Your usual items are cheapest at X this week": the user keeps a list of
   what they usually buy (entered by hand, kept on their computer), and
   CouponSweep compares sale prices and clipped coupons across their stores.
+- Meal planning from the weekly ad: suggest the week's meals from what's on
+  sale and what's been clipped at the user's stores, plus a shopping list.
+  Needs each store's weekly ad data.
+- Stock-up alerts: from the user's usual-items list, spot when an item hits
+  its low price (sales repeat about every 6–8 weeks) and say how many to buy
+  to last until the next sale. Needs price history kept on the user's computer.
 
 ## Competitors (as of 2026-11-01)
 
