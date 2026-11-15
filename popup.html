@@ -60,16 +60,24 @@
 
     <h2>Rebates for what you buy</h2>
     <p>CouponSweep reads your store receipts (Albertsons, Tom Thumb, Safeway
-    and their sister stores), finds the Ibotta offers that exactly match what
-    you buy, and adds only those. Ibotta's terms ban tools doing this; it can
-    cost you your Ibotta cash.</p>
+    and their sister stores) and matches them to Checkout 51, Fetch and,
+    if you turn it on, Ibotta.</p>
     <button id="find-rebates" class="primary">Find my rebates</button>
     <p id="rebates-status" class="hint" hidden></p>
+    <p id="ibotta-off" class="hint" hidden>Ibotta matching is off.
+      <a href="#" id="ibotta-on">Turn it on</a> (against Ibotta's terms).</p>
     <div id="rebates" hidden>
+      <h3 id="c51-title">Checkout 51</h3>
+      <p id="c51-note" class="hint"></p>
+      <ul id="c51-list" class="rebate-list"></ul>
+      <h3 id="fetch-title">Fetch: scan these receipts</h3>
+      <p class="hint">Fetch pays points on every receipt scanned in its app
+      within 14 days. Tick each one once it's in.</p>
+      <ul id="fetch-list" class="rebate-list"></ul>
       <h3 id="scan-title">Scan these receipts in the Ibotta app</h3>
       <ul id="scan-list" class="rebate-list"></ul>
       <h3 id="usual-title">For things you usually buy</h3>
-      <p class="hint">Added before you shop, these pay automatically if your
+      <p id="usual-hint" class="hint">Added before you shop, these pay automatically if your
       store card is linked in the Ibotta app.</p>
       <ul id="usual-list" class="rebate-list"></ul>
       <details id="possible-box">

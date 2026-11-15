@@ -20,7 +20,8 @@
 
 import { STORES, runnable, sortStores } from "./stores.js";
 import { ibottaStoreUrl } from "./rebates.js";
-import { usualItems, matchUsual, matchReceipts } from "./matcher.js";
+import { usualItems, matchUsual, matchReceipts, matchItem } from "./matcher.js";
+import { fetchC51Offers, toMatcherOffers, c51Week } from "./checkout51.js";
 
 const RUN_TIMEOUT_MS = 60 * 60 * 1000; // Walmart's search pass can run long.
 const DAILY_ALARM = "daily-clip";
@@ -153,22 +154,86 @@ async function syncPurchases(checkedInOrder) {
 const offerLink = (o) => `https://ibotta.com/offers/${encodeURIComponent(String(o.name || "offer").replace(/[^\w]+/g, "_"))}/${o.id}`;
 const slim = (o) => ({ id: o.id, name: o.name, value: o.value, amount: o.amount, description: o.description, activated: o.activated, url: offerLink(o) });
 
-// Ibotta: read your receipts, read each store's Ibotta offers, then add only
-// the offers that exactly match what you buy (before you shop: works with a
-// linked store card) or bought in the last 7 days (scan that receipt in the
-// Ibotta app). Never runs unless the user accepted its warning in the popup.
+// Checkout 51: this week's offers (read-only) against this week's receipts
+// and the things you usually buy. Offers tied to particular chains, and
+// "Buy 2" offers short of the count, are only "possible".
+async function checkoutFiftyOne(recent) {
+  const week = c51Week();
+  const offers = (await fetchC51Offers()).flatMap(toMatcherOffers);
+  const best = (list) => {
+    const byId = new Map();
+    for (const h of list) {
+      const prev = byId.get(h.offer.id);
+      if (!prev || (prev.level !== "exact" && h.level === "exact")) byId.set(h.offer.id, { ...h, items: [...new Set([...(prev?.items || []), ...h.items])] });
+    }
+    return [...byId.values()];
+  };
+  const limit = (h, qty) => {
+    if (h.offer.storeLimited) return { ...h, level: "possible", why: `Only at select stores${h.offer.storeText ? ` (${h.offer.storeText})` : ""}. ${h.why}` };
+    if (qty != null && qty < h.offer.units) return { ...h, level: "possible", why: `Needs ${h.offer.units} on one receipt; you bought ${qty}. ${h.why}` };
+    return h;
+  };
+  const slimC51 = (o) => ({ id: o.id, name: o.name, value: o.value, amount: o.amount, url: `https://www.checkout51.com/account/offers` });
+
+  const receipts = [];
+  for (const r of recent.filter((r) => Date.parse(r.at) >= week.start)) {
+    const hits = [];
+    for (const o of offers) {
+      let qty = 0, m = null;
+      const items = [];
+      for (const it of r.items || []) {
+        const x = matchItem(it, o);
+        if (!x) continue;
+        items.push(it.name);
+        qty += it.qty >= 1 ? Math.round(it.qty) : 1;
+        if (!m || x.level === "exact") m = x;
+      }
+      if (m) hits.push(limit({ offer: o, level: m.level, why: m.why, items }, qty));
+    }
+    const merged = best(hits).map((h) => ({ ...h, offer: slimC51(h.offer) }));
+    if (merged.length) receipts.push({ receipt: { id: r.id, at: r.at, store: r.store, banner: r.banner, total: r.total }, deadline: week.end, hits: merged });
+  }
+  const usual = best(matchUsual(usualItems(recent), offers).map((m) => limit(m))).map((m) => ({ ...m, offer: slimC51(m.offer) }));
+  return { weekEnd: week.end, receipts, usual };
+}
+
+// Fetch pays points on any receipt scanned in its app within 14 days (35 a
+// week), so this just lists the ones still in time.
+const FETCH_DAYS = 14;
+const fetchList = (recent) => recent
+  .filter((r) => Date.now() - Date.parse(r.at) < FETCH_DAYS * 864e5)
+  .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
+  .map((r) => ({ id: r.id, at: r.at, store: r.store, total: r.total, items: r.items?.length || 0, deadline: Date.parse(r.at) + FETCH_DAYS * 864e5 }));
+
+// Find my rebates: read your receipts, then Checkout 51 (read-only), Fetch
+// (a reminder list) and, only if the user accepted its warning, Ibotta:
+// read each store's Ibotta offers, then add only the offers that exactly
+// match what you buy (before you shop: works with a linked store card) or
+// bought in the last 7 days (scan that receipt in the Ibotta app).
 async function runIbotta(store, auto, foreground) {
   const fail = async (status, message) => { const r = { status, message }; await record(store.id, r); return r; };
   const { riskAccepted, checkedInOrder } = await getSettings();
-  if (!riskAccepted[store.id]) return fail("error", "Read and accept the Ibotta warning in CouponSweep first.");
+  const ibottaOn = !!riskAccepted[store.id];
 
   // 1. Receipts.
   const sync = await syncPurchases(checkedInOrder);
   if (sync.error) return fail(sync.error, `${sync.site.name}: ${sync.message}`);
   const receipts = sync.receipts;
-
-  // 2. Which Ibotta store pages: where you shop (receipts) plus checked stores.
   const recent = receipts.filter((r) => Date.now() - Date.parse(r.at) <= PURCHASE_DAYS * 864e5);
+
+  // 2. Checkout 51 and Fetch.
+  await setLive(store.id, "Checking Checkout 51…");
+  let c51;
+  try { c51 = await checkoutFiftyOne(recent); } catch (e) { c51 = { error: `Couldn't read Checkout 51's offers: ${e?.message || e}` }; }
+  const fetchReceipts = fetchList(recent);
+  const base = { at: Date.now(), receiptsRead: receipts.length, c51, fetch: fetchReceipts };
+  if (!ibottaOn) {
+    await chrome.storage.local.set({ rebates: { ...base, ibottaOff: true, usual: [], receipts: [] } });
+    const n = (c51.receipts || []).length;
+    return fail("ok", `Checked ${receipts.length} receipts. ${n ? `${n} to upload to Checkout 51. ` : ""}${fetchReceipts.length} to scan in Fetch. Ibotta is off.`);
+  }
+
+  // 3. Which Ibotta store pages: where you shop (receipts) plus checked stores.
   const storeIds = [...new Set([...recent.map((r) => r.banner), ...checkedInOrder])].filter((id) => ibottaStoreUrl(id));
   if (!storeIds.length) return fail("error", "None of your stores are on Ibotta yet.");
 
@@ -213,12 +278,14 @@ async function runIbotta(store, auto, foreground) {
   }
   for (const [, ids] of addIds) sum.total += ids.size;
 
-  await chrome.storage.local.set({ rebates: { at: Date.now(), receiptsRead: receipts.length, usual, receipts: toScan } });
+  await chrome.storage.local.set({ rebates: { ...base, usual, receipts: toScan } });
   const exact = usual.filter((m) => m.level === "exact").length;
   const scans = toScan.filter((x) => x.hits.some((h) => h.level === "exact")).length;
   sum.message ??= `${exact} rebate${exact === 1 ? "" : "s"} for things you buy` +
     (sum.clipped ? ` (${sum.clipped} added)` : "") +
-    (scans ? `; ${scans} receipt${scans === 1 ? "" : "s"} to scan in Ibotta` : "") + ".";
+    (scans ? `; ${scans} receipt${scans === 1 ? "" : "s"} to scan in Ibotta` : "") +
+    ((c51.receipts || []).length ? `; ${c51.receipts.length} for Checkout 51` : "") +
+    `; ${fetchReceipts.length} to scan in Fetch.`;
   await record(store.id, sum);
   return sum;
 }

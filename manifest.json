@@ -63,7 +63,8 @@
     "https://www.walgreens.com/*",
     "https://www.bjs.com/*",
     "https://secure.chase.com/web/auth/*",
-    "https://ibotta.com/*"
+    "https://ibotta.com/*",
+    "https://www.checkout51.com/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -329,6 +330,15 @@
         "content/ibotta.js"
       ],
       "world": "MAIN",
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.checkout51.com/account/upload*"
+      ],
+      "js": [
+        "content/checkout51.js"
+      ],
       "run_at": "document_idle"
     }
   ]

@@ -1,5 +1,6 @@
 import { STORES, sortStores } from "./stores.js";
 import { ibottaStoreUrl, IBOTTA_ALL_GROCERY, CHECKOUT51, FETCH } from "./rebates.js";
+import { C51_UPLOAD } from "./checkout51.js";
 
 const mine = document.getElementById("stores");
 const more = document.getElementById("more-stores");
@@ -125,11 +126,71 @@ function render({ results = {}, live: running, history, rebates }) {
 // ── "Rebates for what you buy" (background.js runIbotta, matcher.js) ──────
 const IBOTTA = STORES.find((s) => s.id === "ibotta");
 const findRebates = document.getElementById("find-rebates");
-findRebates.addEventListener("click", () => {
-  const go = () => chrome.runtime.sendMessage({ type: "run", store: "ibotta" });
-  if (needsRisk(IBOTTA)) showRisk(IBOTTA, go);
-  else go();
+// Checkout 51 and Fetch need no warning; Ibotta joins in only once accepted.
+findRebates.addEventListener("click", () => chrome.runtime.sendMessage({ type: "run", store: "ibotta" }));
+document.getElementById("ibotta-on").addEventListener("click", (e) => {
+  e.preventDefault();
+  showRisk(IBOTTA, () => {});
 });
+let fetchScanned = {};
+try { chrome.storage.local.get("fetchScanned").then((d) => { fetchScanned = d.fetchScanned || {}; }); } catch {}
+
+// Checkout 51: one entry per receipt from this offer week, with a button that
+// opens the upload page with the matching offers ticked (content/checkout51.js).
+function renderC51(c51) {
+  const list = document.getElementById("c51-list");
+  const note = document.getElementById("c51-note");
+  if (!c51) { list.replaceChildren(); note.textContent = ""; return; }
+  if (c51.error) { list.replaceChildren(); note.textContent = c51.error; return; }
+  const rows = (c51.receipts || []).map((x) => {
+    const exact = x.hits.filter((h) => h.level === "exact");
+    const li = document.createElement("li");
+    const head = document.createElement("strong");
+    head.textContent = `${x.receipt.store}, ${day(Date.parse(x.receipt.at))} · upload by ${day(x.deadline)}`;
+    const ul = document.createElement("ul");
+    ul.append(...x.hits.map((h) => offerLine(h, `${h.level === "possible" ? "maybe: " : ""}(${(h.items[0] || "").toLowerCase()})`)));
+    li.append(head, ul);
+    if (exact.length) {
+      const btn = Object.assign(document.createElement("button"), { textContent: "Fill in Checkout 51 →" });
+      btn.addEventListener("click", async () => {
+        await chrome.storage.local.set({ c51Prefill: { ids: exact.map((h) => h.offer.id), label: head.textContent, at: Date.now() } });
+        chrome.tabs.create({ url: C51_UPLOAD });
+      });
+      const how = Object.assign(document.createElement("p"), { className: "hint",
+        textContent: "Opens the upload page with these offers ticked. Add a photo of the paper receipt (or a screenshot of the receipt on the store's site; Checkout 51 may only take paper) and submit." });
+      li.append(btn, how);
+    }
+    return li;
+  });
+  const usual = (c51.usual || []).filter((m) => m.level === "exact");
+  if (usual.length) {
+    const li = document.createElement("li");
+    li.append(Object.assign(document.createElement("strong"), { textContent: `This week, for things you usually buy (${usual.length})` }));
+    const ul = document.createElement("ul");
+    ul.append(...usual.map((m) => offerLine(m, `· you buy ${m.items[0].toLowerCase()}`)));
+    li.append(ul);
+    rows.push(li);
+  }
+  note.textContent = rows.length ? `Offers run until ${day(c51.weekEnd)}.` : `Nothing this week (offers change every Sunday).`;
+  list.replaceChildren(...rows);
+}
+
+// Fetch: receipts still inside its 14-day window, with a "scanned" tick
+// saved on this computer.
+function renderFetch(list = []) {
+  document.getElementById("fetch-list").replaceChildren(...(list.length ? list.map((r) => {
+    const li = document.createElement("li");
+    const label = document.createElement("label");
+    const box = Object.assign(document.createElement("input"), { type: "checkbox", checked: !!fetchScanned[r.id] });
+    box.addEventListener("change", () => {
+      fetchScanned = { ...fetchScanned, [r.id]: box.checked || undefined };
+      chrome.storage.local.set({ fetchScanned });
+    });
+    label.append(box, ` ${r.store}, ${day(Date.parse(r.at))} · $${Number(r.total || 0).toFixed(2)} · scan by ${day(r.deadline)}`);
+    li.append(label);
+    return li;
+  }) : [Object.assign(document.createElement("li"), { textContent: "No receipts from the last 14 days." })]));
+}
 const day = (ms) => new Date(ms).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
 function offerLine(h, extra) {
   const li = document.createElement("li");
@@ -149,7 +210,11 @@ function renderRebates(rebates, running, result, busy) {
   status.textContent = running || (result ? `${result.message} · ${ago(result.at)}` : "");
   const box = document.getElementById("rebates");
   box.hidden = !rebates;
+  document.getElementById("ibotta-off").hidden = !needsRisk(IBOTTA);
   if (!rebates) return;
+  renderC51(rebates.c51);
+  renderFetch(rebates.fetch);
+  for (const id of ["scan-title", "scan-list", "usual-title", "usual-hint", "usual-list"]) document.getElementById(id).hidden = !!rebates.ibottaOff;
 
   // Receipts young enough to scan, soonest deadline first.
   const scan = (rebates.receipts || []).filter((x) => x.deadline > Date.now() && x.hits.some((h) => h.level === "exact"));

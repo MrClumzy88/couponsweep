@@ -95,13 +95,17 @@ const CATEGORY = new Set([
   "snack", "drink", "beverage", "cracker", "cookie", "chip", "candy", "chocolate", "coffee",
   "creamer", "bread", "dressing", "soup", "broth", "frozen", "ice", "cream", "pasta", "rice",
   "food", "treat", "water", "tea", "dip", "spread", "mix", "meal", "dinner", "entree",
+  // Describing words, not product lines.
+  "probiotic", "organic", "natural", "original", "classic", "premium", "product", "lotion",
 ]);
 
 // Size limits: "32 oz only", "7 oz or larger", "12 ct only", in the short
 // description or the first line of the terms ("…select varieties, 32 oz only.").
 function sizeRule(offer) {
   const first = String(offer.terms || "").split(/\r?\n/)[0];
-  const d = `${offer.description || ""} ${/\bonly\b|or larger|or more|or smaller|or less/i.test(first) ? first : ""}`.toLowerCase();
+  // "Excludes travel sizes and products under 3oz" isn't a size limit.
+  const d = `${offer.description || ""} ${/\bonly\b|or larger|or more|or smaller|or less/i.test(first) ? first : ""}`
+    .toLowerCase().replace(/\bexclud[^.]*\.?/g, "");
   const s = sizes(d)[0];
   if (!s) return null;
   if (/or larger|or more|\+/.test(d)) return (x) => x.unit === s.unit && x.n >= s.n * 0.98;
