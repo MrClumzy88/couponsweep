@@ -65,7 +65,8 @@
     "https://www.bjs.com/*",
     "https://secure.chase.com/web/auth/*",
     "https://ibotta.com/*",
-    "https://www.checkout51.com/*"
+    "https://www.checkout51.com/*",
+    "https://www.coupons.com/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -368,6 +369,25 @@
         "content/albertsons-receipt.js"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.coupons.com/*"
+      ],
+      "js": [
+        "content/couponscom-capture.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://www.coupons.com/*"
+      ],
+      "js": [
+        "content/couponscom.js"
+      ],
+      "run_at": "document_start"
     }
   ]
 }

@@ -178,6 +178,42 @@ try { chrome.storage.local.get("fetchScanned").then((d) => { fetchScanned = d.fe
   });
 })();
 
+// Stacks: one entry per product, with every exact deal from each place and
+// the total. Two or more places on one item is a stack.
+function renderStacks(stacks = []) {
+  document.getElementById("stacks-title").textContent = `Stacks: every deal on things you buy (${stacks.length})`;
+  document.getElementById("stacks-list").replaceChildren(...(stacks.length ? stacks.map((s) => {
+    const li = document.createElement("li");
+    const head = document.createElement("strong");
+    head.textContent = `${s.item.toLowerCase()}: $${s.total.toFixed(2)}${s.deals.length > 1 ? ` from ${s.deals.length} places (stack)` : ""}`;
+    const ul = document.createElement("ul");
+    ul.append(...s.deals.map((d) => {
+      const x = document.createElement("li");
+      x.append(Object.assign(document.createElement("a"), { href: d.url, target: "_blank", rel: "noopener", textContent: `${d.source}: ${d.value}` }), ` ${d.name}`);
+      return x;
+    }));
+    li.append(head, ul);
+    return li;
+  }) : [Object.assign(document.createElement("li"), { textContent: "No deals on your usual items right now." })]));
+}
+
+// coupons.com: printable coupons whose own barcode list includes something
+// you buy. The button clips them on coupons.com (content/couponscom.js);
+// the user prints.
+function renderCouponsCom(cc) {
+  const list = document.getElementById("cc-list");
+  const note = document.getElementById("cc-note");
+  const btn = document.getElementById("cc-clip");
+  const usual = cc?.usual || [];
+  note.textContent = cc?.error || (usual.length ? "Matched by barcode against what you buy." : "No printable coupons for your usual items right now.");
+  list.replaceChildren(...usual.map((m) => offerLine(m, `· you buy ${m.items[0].toLowerCase()}`)));
+  btn.hidden = !usual.length;
+  btn.onclick = async () => {
+    await chrome.storage.local.set({ ccPrefill: { ids: usual.map((m) => m.offer.id), at: Date.now() } });
+    chrome.tabs.create({ url: "https://www.coupons.com/printable" });
+  };
+}
+
 // Checkout 51: one entry per receipt from this offer week, with a button that
 // opens the upload page with the matching offers ticked (content/checkout51.js).
 function renderC51(c51) {
@@ -263,6 +299,8 @@ function renderRebates(rebates, running, result, busy) {
   box.hidden = !rebates;
   document.getElementById("ibotta-off").hidden = !needsRisk(IBOTTA);
   if (!rebates) return;
+  renderStacks(rebates.stacks);
+  renderCouponsCom(rebates.couponsCom);
   renderC51(rebates.c51);
   renderFetch(rebates.fetch);
   for (const id of ["scan-title", "scan-list", "usual-title", "usual-hint", "usual-list"]) document.getElementById(id).hidden = !!rebates.ibottaOff;

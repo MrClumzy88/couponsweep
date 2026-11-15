@@ -40,7 +40,12 @@ Worked on weekly. The core (clipping at every supported store) stays free.
   email the receipt to the account address. If Fetch reads Albertsons
   emails from a linked Gmail, receipts would reach Fetch with no scanning.
   Needs a test with one receipt.
-- [ ] **coupons.com**: explore next (printable and digital manufacturer coupons).
+- [x] **coupons.com** in Find my rebates: reads the printable list the page
+  loads (`/api/getCoupons`; each coupon lists the barcodes it covers), matches
+  your receipts by barcode, and clips the matches on its page for you to print.
+- [x] **Stacks**: one list per product of every exact deal (coupons.com,
+  Checkout 51, Ibotta). Next: add the store's own digital coupons (the
+  Albertsons gallery) to the stack. Candidate for the paid tier.
 - [ ] **BJ's: recover from "Please refresh the page"** by reloading and continuing instead of stopping.
 - [ ] **Firefox version**: background needs `background.scripts` alongside `service_worker`; publish on addons.mozilla.org.
 - [x] **A page per store** ("How to clip all Kroger digital coupons"), which is how OttoClipper ranks in search. Built by `scripts/build-pages.mjs` into `docs/`.

@@ -259,6 +259,67 @@ async function checkoutFiftyOne(recent) {
   return { weekEnd: week.end, receipts, usual };
 }
 
+// coupons.com printables: the list the printable page loads, saved by
+// content/couponscom.js. Refreshed by opening the page in the background
+// when it's more than 12 hours old.
+async function couponsComOffers() {
+  const fresh = (c) => c && Date.now() - c.at < 12 * 3600e3;
+  let { couponsCom } = await chrome.storage.local.get("couponsCom");
+  if (fresh(couponsCom)) return couponsCom.offers;
+  const tab = await chrome.tabs.create({ url: "https://www.coupons.com/printable", active: false });
+  for (let i = 0; i < 40; i++) {
+    await new Promise((r) => setTimeout(r, 500));
+    ({ couponsCom } = await chrome.storage.local.get("couponsCom"));
+    if (fresh(couponsCom)) break;
+  }
+  chrome.tabs.remove(tab.id).catch(() => {});
+  if (!fresh(couponsCom)) throw new Error("coupons.com didn't load its coupons");
+  return couponsCom.offers;
+}
+
+// Barcodes: receipts and coupons.com both drop the check digit, but leading
+// zeros vary (a 10-digit code on the receipt, 11 on the coupon), so compare without them, and
+// also without a trailing check digit in case one side has it.
+const upcKeys = (u) => {
+  const s = String(u || "").replace(/\D/g, "").replace(/^0+/, "");
+  return s ? [s, s.slice(0, -1)] : [];
+};
+
+// Printable coupons for things you usually buy, matched by barcode only: a
+// coupon's own product list is the final word.
+function matchCouponsCom(offers, items) {
+  const out = [];
+  for (const o of offers.filter((o) => !o.expiration || Date.parse(o.expiration) > Date.now())) {
+    const keys = new Set(o.upcs.flatMap((u) => { const s = String(u).replace(/^0+/, ""); return [s]; }));
+    const hit = items.filter((it) => upcKeys(it.upc).some((k) => keys.has(k)));
+    if (hit.length) {
+      out.push({
+        level: "exact",
+        why: `Barcode on the coupon's product list${o.required > 1 ? `; buy ${o.required}` : ""}`,
+        items: hit.map((it) => it.name),
+        offer: { id: o.id, name: o.name, value: `$${(o.cents / 100).toFixed(2)} off (print)`, amount: o.cents / 100, url: "https://www.coupons.com/printable" },
+      });
+    }
+  }
+  return out.sort((a, b) => b.offer.amount - a.offer.amount);
+}
+
+// Stacks: every deal that applies to one product you buy, across the store's
+// coupons, coupons.com, Checkout 51 and Ibotta (exact matches only).
+function buildStacks(items, sources) {
+  const stacks = [];
+  for (const it of items) {
+    const deals = [];
+    for (const [source, list] of Object.entries(sources)) {
+      for (const m of list || []) {
+        if (m.level === "exact" && m.items?.includes(it.name)) deals.push({ source, name: m.offer.name, value: m.offer.value, amount: m.offer.amount || 0, url: m.offer.url });
+      }
+    }
+    if (deals.length) stacks.push({ item: it.name, deals, total: Math.round(deals.reduce((n, d) => n + d.amount, 0) * 100) / 100 });
+  }
+  return stacks.sort((a, b) => b.deals.length - a.deals.length || b.total - a.total);
+}
+
 // Fetch pays points on any receipt scanned in its app within 14 days (35 a
 // week), so this just lists the ones still in time.
 const FETCH_DAYS = 14;
@@ -288,9 +349,14 @@ async function runIbotta(store, auto, foreground) {
   let c51;
   try { c51 = await checkoutFiftyOne(recent); } catch (e) { c51 = { error: `Couldn't read Checkout 51's offers: ${e?.message || e}` }; }
   const fetchReceipts = fetchList(recent);
-  const base = { at: Date.now(), receiptsRead: receipts.length, c51, fetch: fetchReceipts };
+  await setLive(store.id, "Checking coupons.com…");
+  const myItems = usualItems(recent);
+  let couponsCom;
+  try { couponsCom = { usual: matchCouponsCom(await couponsComOffers(), myItems) }; } catch (e) { couponsCom = { error: `Couldn't read coupons.com: ${e?.message || e}`, usual: [] }; }
+  const base = { at: Date.now(), receiptsRead: receipts.length, c51, fetch: fetchReceipts, couponsCom };
+  const stacksFor = (ibottaUsual) => buildStacks(myItems, { "coupons.com": couponsCom.usual, "Checkout 51": c51.usual, Ibotta: ibottaUsual });
   if (!ibottaOn) {
-    await chrome.storage.local.set({ rebates: { ...base, ibottaOff: true, usual: [], receipts: [] } });
+    await chrome.storage.local.set({ rebates: { ...base, ibottaOff: true, usual: [], receipts: [], stacks: stacksFor([]) } });
     const n = (c51.receipts || []).length;
     return fail("ok", `Checked ${receipts.length} receipts. ${n ? `${n} to upload to Checkout 51. ` : ""}${fetchReceipts.length} to scan in Fetch. Ibotta is off.`);
   }
@@ -340,7 +406,7 @@ async function runIbotta(store, auto, foreground) {
   }
   for (const [, ids] of addIds) sum.total += ids.size;
 
-  await chrome.storage.local.set({ rebates: { ...base, usual, receipts: toScan } });
+  await chrome.storage.local.set({ rebates: { ...base, usual, receipts: toScan, stacks: stacksFor(usual) } });
   const exact = usual.filter((m) => m.level === "exact").length;
   const scans = toScan.filter((x) => x.hits.some((h) => h.level === "exact")).length;
   sum.message ??= `${exact} rebate${exact === 1 ? "" : "s"} for things you buy` +
