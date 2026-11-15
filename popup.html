@@ -22,25 +22,6 @@
     <button id="accept" class="primary">I understand</button>
   </div>
 
-  <div id="risk" class="risk" hidden role="alertdialog" aria-modal="true" aria-labelledby="risk-title">
-    <h2 id="risk-title">⚠ USE AT YOUR OWN RISK ⚠</h2>
-    <p><strong><span class="risk-name">Ibotta</span>'s Terms of Use ban tools like
-    CouponSweep</strong> (“programmatic means”).</p>
-    <ul>
-      <li><span class="risk-name">Ibotta</span> can close your account at any time.</li>
-      <li>If it does, <strong>you lose all the cash back in it</strong>, including
-      money you earned by hand.</li>
-      <li>CouponSweep can't undo that, and nobody here can get it back for you.</li>
-    </ul>
-    <p>The safe way: add offers yourself from <em>Get cash back too</em>.</p>
-    <label class="risk-line"><input type="checkbox" id="risk-check"> I understand
-      <span class="risk-name">Ibotta</span> may close my account and keep my cash back.</label>
-    <div class="risk-buttons">
-      <button id="risk-cancel" class="primary">Cancel</button>
-      <button id="risk-accept" class="danger" disabled>Turn on anyway</button>
-    </div>
-  </div>
-
   <!-- Shown when the open tab is an Albertsons-family receipt page. -->
   <div id="this-receipt" class="this-receipt" hidden>
     <strong>This receipt</strong>
@@ -65,65 +46,12 @@
   <p id="live" class="live" hidden></p>
   <p id="month" class="month" hidden></p>
 
-  <details id="cashback" class="cashback">
-    <summary><strong>Get cash back too</strong> <span id="cashback-count"></span></summary>
-    <p>Rebate apps pay you back after you buy, on top of your coupons.</p>
-
-    <h2>Rebates for what you buy</h2>
-    <p>CouponSweep reads your store receipts (Albertsons, Tom Thumb, Safeway
-    and their sister stores) and matches them to Checkout 51, Fetch and,
-    if you turn it on, Ibotta.</p>
-    <button id="find-rebates" class="primary">Find my rebates</button>
-    <p id="rebates-status" class="hint" hidden></p>
-    <p id="ibotta-off" class="hint" hidden>Ibotta matching is off.
-      <a href="#" id="ibotta-on">Turn it on</a> (against Ibotta's terms).</p>
-    <div id="rebates" hidden>
-      <h3 id="stacks-title">Stacks: every deal on things you buy</h3>
-      <p class="hint">Deals from different places add up on the same item:
-      a printed coupon at the register, then cash back afterwards.</p>
-      <ul id="stacks-list" class="rebate-list"></ul>
-      <h3 id="cc-title">coupons.com printables</h3>
-      <p id="cc-note" class="hint"></p>
-      <ul id="cc-list" class="rebate-list"></ul>
-      <button id="cc-clip" hidden>Clip these on coupons.com and print →</button>
-      <h3 id="c51-title">Checkout 51</h3>
-      <p id="c51-note" class="hint"></p>
-      <ul id="c51-list" class="rebate-list"></ul>
-      <h3 id="fetch-title">Fetch: scan these receipts</h3>
-      <p class="hint">Fetch pays points on every receipt scanned in its app
-      within 14 days. Tick each one once it's in.</p>
-      <ul id="fetch-list" class="rebate-list"></ul>
-      <h3 id="scan-title">Scan these receipts in the Ibotta app</h3>
-      <ul id="scan-list" class="rebate-list"></ul>
-      <h3 id="usual-title">For things you usually buy</h3>
-      <p id="usual-hint" class="hint">Added before you shop, these pay automatically if your
-      store card is linked in the Ibotta app.</p>
-      <ul id="usual-list" class="rebate-list"></ul>
-      <details id="possible-box">
-        <summary id="possible-title">Maybe: check these yourself</summary>
-        <ul id="possible-list" class="rebate-list"></ul>
-      </details>
-    </div>
-
-    <h2>Ibotta by hand</h2>
-    <ol>
-      <li>Sign up or log in at Ibotta (once).</li>
-      <li>Open your store and press <b>+</b> on every offer you might buy:
-        <span id="ibotta-stores" class="link-list"></span></li>
-      <li>In the Ibotta app, link your store card so cash back comes in on its
-        own. No card link? Scan your receipt in the app after you shop.</li>
-    </ol>
-    <h2>Checkout 51</h2>
-    <ol>
-      <li>After you shop, open <a id="c51" target="_blank" rel="noopener">Checkout 51</a>,
-        add the offers that match what you bought, then upload your receipt.</li>
-    </ol>
-    <h2>Fetch</h2>
-    <ol>
-      <li>Scan every grocery receipt in the <a id="fetch" target="_blank" rel="noopener">Fetch</a>
-        app. Nothing to add first.</li>
-    </ol>
-  </details>
+  <!-- Rebate apps live on their own page (rebates.html); this is the way in. -->
+  <button id="open-rebates" class="rebates-card">
+    <span class="rc-title">💵 Rebates</span>
+    <span id="rebates-summary" class="rc-sub">Ibotta, Checkout 51, Fetch, coupons.com</span>
+    <span class="rc-go">Open →</span>
+  </button>
 
   <label class="daily"><input type="checkbox" id="daily"> Run once a day automatically</label>
   <label class="daily sub-option">At <select id="daily-hour" title="When the daily run starts. Chrome has to be open then; if it isn't, the run starts next time Chrome opens."><option value="">any time</option></select></label>

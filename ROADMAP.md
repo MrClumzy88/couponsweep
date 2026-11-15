@@ -43,6 +43,9 @@ Worked on weekly. The core (clipping at every supported store) stays free.
 - [x] **coupons.com** in Find my rebates: reads the printable list the page
   loads (`/api/getCoupons`; each coupon lists the barcodes it covers), matches
   your receipts by barcode, and clips the matches on its page for you to print.
+- [x] **Rebates page** (`rebates.html`): to-do list by deadline with one
+  button each, a before-you-shop table per item, and the apps with the
+  Ibotta switch. The popup keeps clipping and shows a one-line summary.
 - [x] **Stacks**: one list per product of every exact deal (coupons.com,
   Checkout 51, Ibotta). Next: add the store's own digital coupons (the
   Albertsons gallery) to the stack. Candidate for the paid tier.

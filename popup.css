@@ -146,3 +146,12 @@ button.danger { width: 100%; padding: 8px; background: none; color: var(--bad); 
 .this-receipt { margin: 0 0 12px; padding: 8px 10px; border: 1px solid var(--accent); border-radius: 6px; }
 .this-receipt button { display: block; width: 100%; margin-top: 6px; text-align: left; }
 .this-receipt p { margin: 4px 0; }
+.rebates-card {
+  display: grid; grid-template-columns: 1fr auto; gap: 0 8px; align-items: center;
+  width: 100%; margin-top: 12px; padding: 10px 12px; text-align: left;
+  background: none; border: 1px solid var(--accent); border-radius: 8px;
+}
+.rebates-card:hover { background: var(--btn); }
+.rc-title { font-weight: 700; }
+.rc-sub { grid-column: 1; color: var(--muted); font-size: 12px; }
+.rc-go { grid-column: 2; grid-row: 1 / span 2; color: var(--accent); font-weight: 700; }

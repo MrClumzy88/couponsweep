@@ -1,6 +1,5 @@
 import { STORES, sortStores } from "./stores.js";
-import { ibottaStoreUrl, IBOTTA_ALL_GROCERY, CHECKOUT51, FETCH } from "./rebates.js";
-import { C51_UPLOAD } from "./checkout51.js";
+import { summary, day } from "./rebate-todos.js";
 
 const mine = document.getElementById("stores");
 const more = document.getElementById("more-stores");
@@ -69,7 +68,7 @@ function renderMonth(history = []) {
   month.title = "Coupons CouponSweep clipped this month. The dollar amount only counts coupons that show a plain \"$ off\" value, so the real figure is higher.";
 }
 
-function render({ results = {}, live: running, history, rebates }) {
+function render({ results = {}, live: running, history, rebates, rebateDone }) {
   const now = liveMap(running);
   const busy = Object.keys(now).length > 0;
   // "Your stores" are the checked or pinned ones, pinned first, then in the
@@ -78,6 +77,7 @@ function render({ results = {}, live: running, history, rebates }) {
   let count = 0;
   for (const s of ordered) {
     const row = rows[s.id];
+    if (!row) continue; // Rebate apps (Ibotta) live on the rebates page.
     const on = !!settings.enabled?.[s.id] && !s.comingSoon;
     const pinned = !!settings.pinned?.[s.id];
     row.querySelector(".enabled").checked = on;
@@ -95,7 +95,6 @@ function render({ results = {}, live: running, history, rebates }) {
     p.textContent = s.comingSoon ? "In development."
       : running ? now[s.id]
       : r ? `${r.message} · ${ago(r.at)}` : "Not run yet.";
-    if (s.risky && !running) p.textContent = `⚠ Use at your own risk: can cost you your ${s.name} cash. ${p.textContent}`;
     row.querySelector(".run").disabled = busy || !!s.comingSoon || !settings.acknowledged;
   }
   empty.hidden = count > 0;
@@ -107,8 +106,8 @@ function render({ results = {}, live: running, history, rebates }) {
   dailyHour.value = Number.isInteger(settings.dailyHour) ? String(settings.dailyHour) : "";
   dailyHour.disabled = !settings.acknowledged || !settings.daily;
   notice.hidden = !!settings.acknowledged;
-  runAll.disabled = busy || !settings.acknowledged || !STORES.some((s) => settings.enabled?.[s.id] && !s.comingSoon);
-  const stopped = ordered.filter((s) => settings.enabled?.[s.id] && !s.comingSoon && NEEDS_USER.has(results[s.id]?.status));
+  runAll.disabled = busy || !settings.acknowledged || !STORES.some((s) => settings.enabled?.[s.id] && !s.comingSoon && !s.rebate);
+  const stopped = ordered.filter((s) => settings.enabled?.[s.id] && !s.comingSoon && !s.rebate && NEEDS_USER.has(results[s.id]?.status));
   retryIds = stopped.map((s) => s.id);
   retry.hidden = busy || !settings.acknowledged || !stopped.length;
   retry.textContent = stopped.length === 1
@@ -119,21 +118,20 @@ function render({ results = {}, live: running, history, rebates }) {
   const names = Object.keys(now).map((id) => STORES.find((s) => s.id === id)?.name || id);
   if (busy) live.textContent = `Working on ${names.join(", ")}…`;
   renderMonth(history);
-  renderCashback(ordered.filter(isMine));
-  renderRebates(rebates, now.ibotta, results.ibotta, busy);
+  renderRebatesCard(rebates, rebateDone, now.ibotta);
 }
 
-// ── "Rebates for what you buy" (background.js runIbotta, matcher.js) ──────
-const IBOTTA = STORES.find((s) => s.id === "ibotta");
-const findRebates = document.getElementById("find-rebates");
-// Checkout 51 and Fetch need no warning; Ibotta joins in only once accepted.
-findRebates.addEventListener("click", () => chrome.runtime.sendMessage({ type: "run", store: "ibotta" }));
-document.getElementById("ibotta-on").addEventListener("click", (e) => {
-  e.preventDefault();
-  showRisk(IBOTTA, () => {});
+// ── Rebates card: a one-line summary and the way into rebates.html ───────
+document.getElementById("open-rebates").addEventListener("click", () => {
+  chrome.tabs.create({ url: chrome.runtime.getURL("rebates.html") });
+  window.close();
 });
-let fetchScanned = {};
-try { chrome.storage.local.get("fetchScanned").then((d) => { fetchScanned = d.fetchScanned || {}; }); } catch {}
+function renderRebatesCard(rebates, rebateDone, running) {
+  const s = summary(rebates, rebateDone);
+  document.getElementById("rebates-summary").textContent = running ? running
+    : !s ? "Find cash back on what you buy"
+    : `${s.open ? `${s.open} to do` : "Nothing to do"}${s.deals ? ` · ${s.deals} deal${s.deals === 1 ? "" : "s"} on your usual items` : ""}${s.stacks ? ` (${s.stacks} stack${s.stacks === 1 ? "" : "s"})` : ""}`;
+}
 
 // "This receipt": on an Albertsons-family receipt-details page (the click on
 // the toolbar button lets CouponSweep picture that tab).
@@ -178,183 +176,6 @@ try { chrome.storage.local.get("fetchScanned").then((d) => { fetchScanned = d.fe
   });
 })();
 
-// Stacks: one entry per product, with every exact deal from each place and
-// the total. Two or more places on one item is a stack.
-function renderStacks(stacks = []) {
-  document.getElementById("stacks-title").textContent = `Stacks: every deal on things you buy (${stacks.length})`;
-  document.getElementById("stacks-list").replaceChildren(...(stacks.length ? stacks.map((s) => {
-    const li = document.createElement("li");
-    const head = document.createElement("strong");
-    head.textContent = `${s.item.toLowerCase()}: $${s.total.toFixed(2)}${s.deals.length > 1 ? ` from ${s.deals.length} places (stack)` : ""}`;
-    const ul = document.createElement("ul");
-    ul.append(...s.deals.map((d) => {
-      const x = document.createElement("li");
-      x.append(Object.assign(document.createElement("a"), { href: d.url, target: "_blank", rel: "noopener", textContent: `${d.source}: ${d.value}` }), ` ${d.name}`);
-      return x;
-    }));
-    li.append(head, ul);
-    return li;
-  }) : [Object.assign(document.createElement("li"), { textContent: "No deals on your usual items right now." })]));
-}
-
-// coupons.com: printable coupons whose own barcode list includes something
-// you buy. The button clips them on coupons.com (content/couponscom.js);
-// the user prints.
-function renderCouponsCom(cc) {
-  const list = document.getElementById("cc-list");
-  const note = document.getElementById("cc-note");
-  const btn = document.getElementById("cc-clip");
-  const usual = cc?.usual || [];
-  note.textContent = cc?.error || (usual.length ? "Matched by barcode against what you buy." : "No printable coupons for your usual items right now.");
-  list.replaceChildren(...usual.map((m) => offerLine(m, `· you buy ${m.items[0].toLowerCase()}`)));
-  btn.hidden = !usual.length;
-  btn.onclick = async () => {
-    await chrome.storage.local.set({ ccPrefill: { ids: usual.map((m) => m.offer.id), at: Date.now() } });
-    chrome.tabs.create({ url: "https://www.coupons.com/printable" });
-  };
-}
-
-// Checkout 51: one entry per receipt from this offer week, with a button that
-// opens the upload page with the matching offers ticked (content/checkout51.js).
-function renderC51(c51) {
-  const list = document.getElementById("c51-list");
-  const note = document.getElementById("c51-note");
-  if (!c51) { list.replaceChildren(); note.textContent = ""; return; }
-  if (c51.error) { list.replaceChildren(); note.textContent = c51.error; return; }
-  const rows = (c51.receipts || []).map((x) => {
-    const exact = x.hits.filter((h) => h.level === "exact");
-    const li = document.createElement("li");
-    const head = document.createElement("strong");
-    head.textContent = `${x.receipt.store}, ${day(Date.parse(x.receipt.at))} · upload by ${day(x.deadline)}`;
-    const ul = document.createElement("ul");
-    ul.append(...x.hits.map((h) => offerLine(h, `${h.level === "possible" ? "maybe: " : ""}(${(h.items[0] || "").toLowerCase()})`)));
-    li.append(head, ul);
-    if (exact.length) {
-      const btn = Object.assign(document.createElement("button"), { textContent: "Fill in Checkout 51 →" });
-      btn.addEventListener("click", async () => {
-        const ids = exact.map((h) => h.offer.id);
-        if (x.receipt.tx && x.receipt.host) {
-          // Pictures the store's own receipt page, then fills in Checkout 51.
-          btn.disabled = true;
-          btn.textContent = "Taking the receipt picture…";
-          chrome.runtime.sendMessage({ type: "c51-prepare", tx: x.receipt.tx, host: x.receipt.host, ids, label: head.textContent });
-          return;
-        }
-        await chrome.storage.local.set({ c51Prefill: { ids, label: head.textContent, at: Date.now() } });
-        chrome.tabs.create({ url: C51_UPLOAD });
-      });
-      const how = Object.assign(document.createElement("p"), { className: "hint",
-        textContent: "Takes a picture of the store's own digital receipt (items, total and barcode), then opens Checkout 51's upload page with it attached and these offers ticked. Check it and submit." });
-      li.append(btn, how);
-    }
-    return li;
-  });
-  const usual = (c51.usual || []).filter((m) => m.level === "exact");
-  if (usual.length) {
-    const li = document.createElement("li");
-    li.append(Object.assign(document.createElement("strong"), { textContent: `This week, for things you usually buy (${usual.length})` }));
-    const ul = document.createElement("ul");
-    ul.append(...usual.map((m) => offerLine(m, `· you buy ${m.items[0].toLowerCase()}`)));
-    li.append(ul);
-    rows.push(li);
-  }
-  note.textContent = rows.length ? `Offers run until ${day(c51.weekEnd)}.` : `Nothing this week (offers change every Sunday).`;
-  list.replaceChildren(...rows);
-}
-
-// Fetch: receipts still inside its 14-day window, with a "scanned" tick
-// saved on this computer.
-function renderFetch(list = []) {
-  document.getElementById("fetch-list").replaceChildren(...(list.length ? list.map((r) => {
-    const li = document.createElement("li");
-    const label = document.createElement("label");
-    const box = Object.assign(document.createElement("input"), { type: "checkbox", checked: !!fetchScanned[r.id] });
-    box.addEventListener("change", () => {
-      fetchScanned = { ...fetchScanned, [r.id]: box.checked || undefined };
-      chrome.storage.local.set({ fetchScanned });
-    });
-    label.append(box, ` ${r.store}, ${day(Date.parse(r.at))} · $${Number(r.total || 0).toFixed(2)} · scan by ${day(r.deadline)}`);
-    li.append(label);
-    return li;
-  }) : [Object.assign(document.createElement("li"), { textContent: "No receipts from the last 14 days." })]));
-}
-const day = (ms) => new Date(ms).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
-function offerLine(h, extra) {
-  const li = document.createElement("li");
-  const a = Object.assign(document.createElement("a"), { href: h.offer.url, target: "_blank", rel: "noopener", textContent: `${h.offer.value || ""} ${h.offer.name}`.trim() });
-  li.append(a);
-  const note = document.createElement("span");
-  note.className = "why";
-  note.textContent = ` ${h.offer.activated ? "✓ on your list. " : ""}${extra || ""}`;
-  li.append(note);
-  li.title = h.why || "";
-  return li;
-}
-function renderRebates(rebates, running, result, busy) {
-  findRebates.disabled = busy || !settings.acknowledged;
-  const status = document.getElementById("rebates-status");
-  status.hidden = !(running || result);
-  status.textContent = running || (result ? `${result.message} · ${ago(result.at)}` : "");
-  const box = document.getElementById("rebates");
-  box.hidden = !rebates;
-  document.getElementById("ibotta-off").hidden = !needsRisk(IBOTTA);
-  if (!rebates) return;
-  renderStacks(rebates.stacks);
-  renderCouponsCom(rebates.couponsCom);
-  renderC51(rebates.c51);
-  renderFetch(rebates.fetch);
-  for (const id of ["scan-title", "scan-list", "usual-title", "usual-hint", "usual-list"]) document.getElementById(id).hidden = !!rebates.ibottaOff;
-
-  // Receipts young enough to scan, soonest deadline first.
-  const scan = (rebates.receipts || []).filter((x) => x.deadline > Date.now() && x.hits.some((h) => h.level === "exact"));
-  document.getElementById("scan-title").hidden = !scan.length;
-  document.getElementById("scan-list").replaceChildren(...scan.map((x) => {
-    const li = document.createElement("li");
-    li.className = "receipt";
-    const head = document.createElement("strong");
-    head.textContent = `${x.receipt.store}, ${day(Date.parse(x.receipt.at))} · scan by ${day(x.deadline)}`;
-    const ul = document.createElement("ul");
-    ul.append(...x.hits.filter((h) => h.level === "exact").map((h) => offerLine(h, h.items.length ? `(${h.items[0].toLowerCase()})` : "")));
-    li.append(head, ul);
-    return li;
-  }));
-
-  const exact = (rebates.usual || []).filter((m) => m.level === "exact");
-  document.getElementById("usual-title").textContent = `For things you usually buy (${exact.length})`;
-  document.getElementById("usual-list").replaceChildren(...(exact.length
-    ? exact.map((m) => offerLine(m, `${m.store} · you bought ${m.items[0].toLowerCase()}`))
-    : [Object.assign(document.createElement("li"), { textContent: "No exact matches right now. Ibotta's offers change every week." })]));
-
-  const maybe = [
-    ...(rebates.usual || []).filter((m) => m.level === "possible"),
-    ...(rebates.receipts || []).flatMap((x) => x.hits.filter((h) => h.level === "possible")),
-  ];
-  const seen = new Set();
-  const uniq = maybe.filter((m) => !seen.has(m.offer.id) && seen.add(m.offer.id));
-  document.getElementById("possible-box").hidden = !uniq.length;
-  document.getElementById("possible-title").textContent = `Maybe: check these yourself (${uniq.length})`;
-  document.getElementById("possible-list").replaceChildren(...uniq.map((m) => offerLine(m, `for ${m.items[0]?.toLowerCase() || "?"}. ${m.why}`)));
-}
-
-// ── "Get cash back too": step-by-step rebate apps, user does the clicking ──
-document.getElementById("c51").href = CHECKOUT51;
-document.getElementById("fetch").href = FETCH;
-const ibottaStores = document.getElementById("ibotta-stores");
-let cashbackKey = "";
-function renderCashback(myStores) {
-  const linked = myStores.filter((s) => ibottaStoreUrl(s.id));
-  const key = linked.map((s) => s.id).join();
-  if (key === cashbackKey && ibottaStores.childElementCount) return;
-  cashbackKey = key;
-  const link = (text, href) => Object.assign(document.createElement("a"), { textContent: text, href, target: "_blank", rel: "noopener" });
-  ibottaStores.replaceChildren(
-    ...linked.map((s) => link(`${s.name} →`, ibottaStoreUrl(s.id))),
-    link(linked.length ? "Other stores →" : "Find your store →", IBOTTA_ALL_GROCERY),
-  );
-  document.getElementById("cashback-count").textContent =
-    linked.length ? `· Ibotta has offers at ${linked.length === 1 ? linked[0].name : `${linked.length} of your stores`}` : "";
-}
-
 // ── Drag to reorder "Your stores" ─────────────────────────────────────────
 let dragId = null;
 function clearDropMarks() {
@@ -392,39 +213,8 @@ mine.addEventListener("drop", (e) => {
   saveSettings({ order: ids });
 });
 
-// ── "Use at your own risk" warning for risky stores (Ibotta) ──────────────
-// Covers the popup until answered; "Turn on anyway" needs the box ticked.
-const risk = document.getElementById("risk");
-const riskCheck = document.getElementById("risk-check");
-const riskAccept = document.getElementById("risk-accept");
-let riskStore = null, riskThen = null;
-const needsRisk = (s) => s.risky && !settings.riskAccepted?.[s.id];
-const syncRiskButton = () => { riskAccept.disabled = !riskCheck.checked; };
-function closeRisk() {
-  risk.hidden = true;
-  riskStore = riskThen = null;
-}
-function showRisk(s, then) {
-  riskStore = s;
-  riskThen = then;
-  risk.querySelectorAll(".risk-name").forEach((el) => { el.textContent = s.name; });
-  riskCheck.checked = false;
-  syncRiskButton();
-  risk.hidden = false;
-  document.getElementById("risk-cancel").focus();
-}
-riskCheck.addEventListener("change", syncRiskButton);
-document.getElementById("risk-cancel").addEventListener("click", closeRisk);
-riskAccept.addEventListener("click", () => {
-  if (riskAccept.disabled || !riskStore) return;
-  const then = riskThen;
-  saveSettings({ riskAccepted: { ...settings.riskAccepted, [riskStore.id]: Date.now() } });
-  closeRisk();
-  then?.();
-});
-
 // ── Rows ─────────────────────────────────────────────────────────────────
-for (const s of STORES) {
+for (const s of STORES.filter((s) => !s.rebate)) {
   const row = tpl.content.firstElementChild.cloneNode(true);
   row.dataset.id = s.id;
   const link = row.querySelector(".store-link");
@@ -432,10 +222,6 @@ for (const s of STORES) {
   link.href = s.url;
   link.title = `Open ${s.name} coupons`;
   row.querySelector(".enabled").addEventListener("change", (e) => {
-    if (e.target.checked && needsRisk(s)) {
-      e.target.checked = false;
-      return showRisk(s, () => saveSettings({ enabled: { ...settings.enabled, [s.id]: true } }));
-    }
     saveSettings({ enabled: { ...settings.enabled, [s.id]: e.target.checked } });
   });
   row.querySelector(".pin").addEventListener("click", () => {
@@ -444,11 +230,7 @@ for (const s of STORES) {
     else pinned[s.id] = true;
     saveSettings({ pinned });
   });
-  row.querySelector(".run").addEventListener("click", () => {
-    const go = () => chrome.runtime.sendMessage({ type: "run", store: s.id });
-    if (needsRisk(s)) showRisk(s, go);
-    else go();
-  });
+  row.querySelector(".run").addEventListener("click", () => chrome.runtime.sendMessage({ type: "run", store: s.id }));
   rows[s.id] = row;
 }
 runAll.addEventListener("click", () => chrome.runtime.sendMessage({ type: "run" }));
@@ -493,7 +275,7 @@ async function checkForUpdate() {
 checkForUpdate();
 
 const refresh = async () => {
-  const data = await chrome.storage.local.get(["settings", "results", "live", "history", "rebates"]);
+  const data = await chrome.storage.local.get(["settings", "results", "live", "history", "rebates", "rebateDone"]);
   settings = data.settings || {};
   render(data);
 };

@@ -89,8 +89,10 @@ export const STORES = [
   { id: "chaseoffers", name: "Chase Offers", adapter: "chase", host: "secure.chase.com", url: "https://secure.chase.com/web/auth/dashboard#/dashboard/merchantOffers/offerCategoriesPage?offerCategoryName=ALL", noDaily: true, drivesPage: true },
   // Rebate app, not a store: adds Ibotta offers for each checked store Ibotta
   // covers (rebates.js), one store page at a time. `risky` stores need their
-  // own warning accepted in the popup (settings.riskAccepted) before they run.
-  { id: "ibotta", name: "Ibotta", adapter: "ibotta", host: "ibotta.com", url: "https://ibotta.com/retailers", noDaily: true, drivesPage: true, risky: true },
+  // own warning accepted (settings.riskAccepted) before they run. `rebate`
+// entries aren't shown in the popup's store list or run by Clip all: the
+// rebates page (rebates.html) runs them as "Find my rebates".
+  { id: "ibotta", name: "Ibotta", adapter: "ibotta", host: "ibotta.com", url: "https://ibotta.com/retailers", noDaily: true, drivesPage: true, risky: true, rebate: true },
   ...inDevelopment,
 ];
 

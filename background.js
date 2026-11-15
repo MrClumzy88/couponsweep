@@ -39,7 +39,7 @@ async function getSettings() {
     notify: settings?.notify ?? true,
     riskAccepted: settings?.riskAccepted || {},
     // Checked stores in the order the popup shows them.
-    checkedInOrder: sortStores(STORES, settings).map((s) => s.id).filter((id) => settings?.enabled?.[id]),
+    checkedInOrder: sortStores(STORES, settings).filter((s) => !s.rebate).map((s) => s.id).filter((id) => settings?.enabled?.[id]),
   };
 }
 

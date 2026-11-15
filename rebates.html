@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CouponSweep rebates</title>
+  <link rel="stylesheet" href="rebates.css">
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>Rebates</h1>
+      <p class="sub">Matches your store receipts to Ibotta, Checkout 51, Fetch and coupons.com.</p>
+    </div>
+    <div class="run">
+      <button id="find" class="primary">Find my rebates</button>
+      <p id="status" class="status"></p>
+    </div>
+  </header>
+
+  <main>
+    <div id="notice" class="card warn" hidden>
+      <p><strong>Before you start.</strong> CouponSweep is unofficial and not
+      affiliated with any store or app. Use it on your own accounts, at your own
+      risk.</p>
+      <button id="accept" class="primary">I understand</button>
+    </div>
+
+    <section id="empty" class="card" hidden>
+      <h2>How it works</h2>
+      <ol>
+        <li>Sign in at albertsons.com (or Safeway, Tom Thumb… one account covers them all).</li>
+        <li>Press <strong>Find my rebates</strong>. CouponSweep reads your receipts and this
+          week's offers. It takes a minute or two the first time.</li>
+        <li>Work down the <strong>To do</strong> list. Each item has one button.</li>
+      </ol>
+    </section>
+
+    <section id="todo-box">
+      <h2>To do <span id="todo-count" class="count"></span></h2>
+      <ul id="todo" class="todos"></ul>
+      <details id="done-box" hidden>
+        <summary id="done-title">Done</summary>
+        <ul id="done" class="todos"></ul>
+      </details>
+    </section>
+
+    <section id="shop-box">
+      <h2>Before you shop</h2>
+      <p class="hint">Deals on the things you usually buy. ★ marks a stack: deals
+      from more than one place on the same item add up.</p>
+      <div class="table-wrap">
+        <table id="stacks">
+          <thead><tr><th>Item</th><th>coupons.com</th><th>Checkout 51</th><th>Ibotta</th><th class="num">Total</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p id="stacks-empty" class="hint" hidden>No deals on your usual items right now. Offers change every week.</p>
+    </section>
+
+    <section id="maybe-box" hidden>
+      <details>
+        <summary id="maybe-title">Maybe: check these yourself</summary>
+        <p class="hint">The brand matches but CouponSweep can't confirm the variety or size.</p>
+        <ul id="maybe" class="plain"></ul>
+      </details>
+    </section>
+
+    <section>
+      <h2>Apps</h2>
+      <div class="apps">
+        <div class="card">
+          <h3>Ibotta <span id="ibotta-state" class="pill"></span></h3>
+          <p>With auto-add on, CouponSweep adds only the Ibotta offers that exactly
+          match what you buy. Link your store card in the Ibotta app and they pay
+          on their own.</p>
+          <p class="risk-line">⚠ Ibotta's terms ban tools like this; it can cost you your Ibotta cash.</p>
+          <button id="ibotta-toggle"></button>
+          <p class="hint">By hand: <span id="ibotta-links" class="links"></span></p>
+        </div>
+        <div class="card">
+          <h3>Checkout 51</h3>
+          <p>New offers every Sunday, through Saturday. Upload the receipt while the
+          offers are live. CouponSweep attaches a picture of the store's own receipt
+          and ticks the offers; you submit.</p>
+          <a id="c51-link" target="_blank" rel="noopener">Open Checkout 51 →</a>
+        </div>
+        <div class="card">
+          <h3>Fetch</h3>
+          <p>Points on every receipt scanned in the app within 14 days (35 a week).
+          Tip: link your email under eReceipts in Fetch, then use <em>Email it to me</em>
+          on a store receipt page.</p>
+          <a id="fetch-link" target="_blank" rel="noopener">Fetch →</a>
+        </div>
+        <div class="card">
+          <h3>coupons.com</h3>
+          <p>Printable manufacturer coupons, matched to your receipts by barcode.
+          Use them at the register, then claim cash back on top.</p>
+          <a href="https://www.coupons.com/printable" target="_blank" rel="noopener">Printable coupons →</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="risk" class="modal" hidden role="alertdialog" aria-modal="true" aria-labelledby="risk-title">
+    <div class="modal-box">
+      <h2 id="risk-title">⚠ USE AT YOUR OWN RISK ⚠</h2>
+      <p><strong>Ibotta's Terms of Use ban tools like CouponSweep</strong> (“programmatic means”).</p>
+      <ul>
+        <li>Ibotta can close your account at any time.</li>
+        <li>If it does, <strong>you lose all the cash back in it</strong>, including money you earned by hand.</li>
+        <li>CouponSweep can't undo that, and nobody here can get it back for you.</li>
+      </ul>
+      <label class="check"><input type="checkbox" id="risk-check"> I understand Ibotta may close my account and keep my cash back.</label>
+      <div class="buttons">
+        <button id="risk-cancel" class="primary">Cancel</button>
+        <button id="risk-accept" class="danger" disabled>Turn on anyway</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="rebates-page.js"></script>
+</body>
+</html>
