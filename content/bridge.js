@@ -16,9 +16,13 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
 // The page-world runner can't read extension storage, so mirror whether the
 // user has accepted the popup's notice onto the page.
+// Same for stores with their own risk warning (Ibotta): the ids accepted.
 function syncAck(settings) {
   if (settings?.acknowledged) document.documentElement.dataset.gbcAck = "1";
   else delete document.documentElement.dataset.gbcAck;
+  const risk = Object.keys(settings?.riskAccepted || {}).join(",");
+  if (risk) document.documentElement.dataset.gbcRisk = risk;
+  else delete document.documentElement.dataset.gbcRisk;
 }
 chrome.storage.local.get("settings").then(({ settings }) => syncAck(settings));
 chrome.storage.onChanged.addListener((changes) => {

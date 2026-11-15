@@ -62,7 +62,8 @@
     "https://www.cvs.com/*",
     "https://www.walgreens.com/*",
     "https://www.bjs.com/*",
-    "https://secure.chase.com/web/auth/*"
+    "https://secure.chase.com/web/auth/*",
+    "https://ibotta.com/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -122,7 +123,8 @@
         "https://www.cvs.com/*",
         "https://www.walgreens.com/*",
         "https://www.bjs.com/*",
-        "https://secure.chase.com/web/auth/*"
+        "https://secure.chase.com/web/auth/*",
+        "https://ibotta.com/*"
       ],
       "js": [
         "content/bridge.js"
@@ -286,6 +288,17 @@
       "js": [
         "content/runner.js",
         "content/chase.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://ibotta.com/*"
+      ],
+      "js": [
+        "content/runner.js",
+        "content/ibotta.js"
       ],
       "world": "MAIN",
       "run_at": "document_idle"

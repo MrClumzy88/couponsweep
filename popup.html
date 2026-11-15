@@ -22,6 +22,27 @@
     <button id="accept" class="primary">I understand</button>
   </div>
 
+  <div id="risk" class="risk" hidden role="alertdialog" aria-modal="true" aria-labelledby="risk-title">
+    <h2 id="risk-title">⚠ USE AT YOUR OWN RISK ⚠</h2>
+    <p><strong><span class="risk-name">Ibotta</span>'s Terms of Use ban tools like
+    CouponSweep</strong> (“programmatic means”).</p>
+    <ul>
+      <li><span class="risk-name">Ibotta</span> can close your account at any time.</li>
+      <li>If it does, <strong>you lose all the cash back in it</strong>, including
+      money you earned by hand.</li>
+      <li>CouponSweep can't undo that, and nobody here can get it back for you.</li>
+    </ul>
+    <p>The safe way: add offers yourself from <em>Get cash back too</em>.</p>
+    <label class="risk-line"><input type="checkbox" id="risk-check"> I understand
+      <span class="risk-name">Ibotta</span> may close my account and keep my cash back.</label>
+    <label class="risk-line">Type <b>MY RISK</b> to continue:
+      <input id="risk-type" autocomplete="off" spellcheck="false"></label>
+    <div class="risk-buttons">
+      <button id="risk-cancel" class="primary">Cancel</button>
+      <button id="risk-accept" class="danger" disabled>Turn on anyway</button>
+    </div>
+  </div>
+
   <p id="empty" class="hint" hidden>Check the stores you shop at.</p>
   <ul id="stores"></ul>
 
@@ -38,8 +59,9 @@
   <details id="cashback" class="cashback">
     <summary><strong>Get cash back too</strong> <span id="cashback-count"></span></summary>
     <p>Rebate apps pay you back after you buy, on top of your coupons.
-    You add these offers yourself: the apps don't allow tools to do it, and a
-    flagged account can lose its cash.</p>
+    The safe way is to add the offers yourself, below. CouponSweep can also add
+    Ibotta offers for you (<em>Ibotta</em> under More stores), but
+    Ibotta's terms ban that and it can cost you your Ibotta cash.</p>
     <h2>Ibotta</h2>
     <ol>
       <li>Sign up or log in at Ibotta (once).</li>

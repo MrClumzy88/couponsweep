@@ -1,14 +1,15 @@
-// Rebate (cash-back) apps. CouponSweep doesn't touch these accounts: Ibotta's
-// terms ban "programmatic means", and a banned account loses its cash. The
-// popup only explains the steps and opens the right page so the user clicks
-// the offers themselves.
+// Rebate (cash-back) apps. The popup's "Get cash back too" section explains
+// the steps and opens the right page so the user can add offers themselves.
+// The opt-in Ibotta adapter (content/ibotta.js) uses the same store pages;
+// Ibotta's terms ban "programmatic means", so it sits behind its own warning.
 
 const IBOTTA = "https://ibotta.com";
 
 // Ibotta's offer page for each store (from ibotta.com/categories/Grocery/88).
-// These pages need an Ibotta sign-in; Ibotta asks for it first if needed.
+// Signed-in form (/retailers/<name>/<id>); the public /retailers/groups/…
+// links answer "couldn't find that retailer" once you're signed in.
 const IBOTTA_STORE = {
-  kroger: "/retailers/groups/Kroger?ids=7",
+  kroger: "/retailers/Kroger/7",
   ralphs: "/retailers/Ralphs/8",
   frysfood: "/retailers/Frys/16",
   kingsoopers: "/retailers/King_Soopers/1",
@@ -25,34 +26,34 @@ const IBOTTA_STORE = {
   metromarket: "/retailers/Metro_Market/219",
   foodsco: "/retailers/Foods_Co/71",
   food4less: "/retailers/Food4Less/41",
-  albertsons: "/retailers/groups/Albertsons?ids=212",
-  tomthumb: "/retailers/groups/Tom_Thumb?ids=20",
-  safeway: "/retailers/groups/Safeway?ids=2",
-  vons: "/retailers/groups/Vons?ids=11",
-  randalls: "/retailers/groups/Randalls?ids=31",
-  jewelosco: "/retailers/groups/Jewel-Osco?ids=214",
-  acmemarkets: "/retailers/groups/ACME?ids=213",
-  shaws: "/retailers/groups/Shaws?ids=215",
-  starmarket: "/retailers/groups/Star_Market?ids=216",
-  pavilions: "/retailers/groups/Pavilions?ids=17",
+  albertsons: "/retailers/Albertsons/212",
+  tomthumb: "/retailers/Tom_Thumb/20",
+  safeway: "/retailers/Safeway/2",
+  vons: "/retailers/Vons/11",
+  randalls: "/retailers/Randalls/31",
+  jewelosco: "/retailers/Jewel-Osco/214",
+  acmemarkets: "/retailers/ACME/213",
+  shaws: "/retailers/Shaws/215",
+  starmarket: "/retailers/Star_Market/216",
+  pavilions: "/retailers/Pavilions/17",
   haggen: "/retailers/Haggen_Northwest_Fresh/323",
   kingsfoodmarkets: "/retailers/Kings_Food_Markets/1345",
   shopunitedsupermarkets: "/retailers/United_Supermarkets/250",
   shopmarketstreet: "/retailers/Market_Street/251",
   shopalbertsonsmarket: "/retailers/Albertsons_Market/340",
-  heb: "/retailers/groups/H-E-B?ids=25",
-  target: "/retailers/groups/Target?ids=3",
-  bjs: "/retailers/groups/BJs_Wholesale_Club?ids=193",
-  walmart: "/retailers/groups/Walmart?ids=4&ids=1408",
+  heb: "/retailers/H-E-B/25",
+  target: "/retailers/Target/3",
+  bjs: "/retailers/BJs_Wholesale_Club/193",
+  walmart: "/retailers/Walmart/4",
   // In development here, but already on Ibotta.
   publix: "/retailers/Publix/9",
-  meijer: "/retailers/groups/Meijer?ids=19",
+  meijer: "/retailers/Meijer/19",
   shoprite: "/retailers/ShopRite/24",
-  stopandshop: "/retailers/groups/Stop_and_Shop?ids=23",
+  stopandshop: "/retailers/Stop_and_Shop/23",
   giantfood: "/retailers/Giant_(DCDEVAMD)/133",
   foodlion: "/retailers/Food_Lion/49",
-  hannaford: "/retailers/groups/Hannaford?ids=36",
-  dollargeneral: "/retailers/groups/Dollar_General?ids=34&ids=5081",
+  hannaford: "/retailers/Hannaford/36",
+  dollargeneral: "/retailers/Dollar_General/34",
   harristeeter: "/retailers/Harris_Teeter/29",
   wegmans: "/retailers/Wegmans/43",
 };

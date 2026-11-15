@@ -94,6 +94,7 @@ function render({ results = {}, live: running, history }) {
     p.textContent = s.comingSoon ? "In development."
       : running ? now[s.id]
       : r ? `${r.message} · ${ago(r.at)}` : "Not run yet.";
+    if (s.risky && !running) p.textContent = `⚠ Use at your own risk: can cost you your ${s.name.replace(/ \(.*\)$/, "")} cash. ${p.textContent}`;
     row.querySelector(".run").disabled = busy || !!s.comingSoon || !settings.acknowledged;
   }
   empty.hidden = count > 0;
@@ -176,6 +177,51 @@ mine.addEventListener("drop", (e) => {
   saveSettings({ order: ids });
 });
 
+// ── "Use at your own risk" warning for risky stores (Ibotta) ──────────────
+// Covers the popup until answered. "Turn on anyway" needs the box ticked, the
+// phrase typed and a few seconds of reading time.
+const risk = document.getElementById("risk");
+const riskCheck = document.getElementById("risk-check");
+const riskType = document.getElementById("risk-type");
+const riskAccept = document.getElementById("risk-accept");
+const RISK_PHRASE = "MY RISK";
+const RISK_WAIT = 8;
+let riskStore = null, riskThen = null, riskTimer = null, riskLeft = 0;
+const needsRisk = (s) => s.risky && !settings.riskAccepted?.[s.id];
+function syncRiskButton() {
+  const typed = riskType.value.trim().toUpperCase() === RISK_PHRASE;
+  riskAccept.disabled = !(riskCheck.checked && typed && riskLeft <= 0);
+  riskAccept.textContent = riskLeft > 0 ? `Turn on anyway (${riskLeft})` : "Turn on anyway";
+}
+function closeRisk() {
+  clearInterval(riskTimer);
+  risk.hidden = true;
+  riskStore = riskThen = null;
+}
+function showRisk(s, then) {
+  riskStore = s;
+  riskThen = then;
+  risk.querySelectorAll(".risk-name").forEach((el) => { el.textContent = s.name.replace(/ \(.*\)$/, ""); });
+  riskCheck.checked = false;
+  riskType.value = "";
+  riskLeft = RISK_WAIT;
+  clearInterval(riskTimer);
+  riskTimer = setInterval(() => { riskLeft--; syncRiskButton(); if (riskLeft <= 0) clearInterval(riskTimer); }, 1000);
+  syncRiskButton();
+  risk.hidden = false;
+  document.getElementById("risk-cancel").focus();
+}
+riskCheck.addEventListener("change", syncRiskButton);
+riskType.addEventListener("input", syncRiskButton);
+document.getElementById("risk-cancel").addEventListener("click", closeRisk);
+riskAccept.addEventListener("click", () => {
+  if (riskAccept.disabled || !riskStore) return;
+  const then = riskThen;
+  saveSettings({ riskAccepted: { ...settings.riskAccepted, [riskStore.id]: Date.now() } });
+  closeRisk();
+  then?.();
+});
+
 // ── Rows ─────────────────────────────────────────────────────────────────
 for (const s of STORES) {
   const row = tpl.content.firstElementChild.cloneNode(true);
@@ -185,6 +231,10 @@ for (const s of STORES) {
   link.href = s.url;
   link.title = `Open ${s.name} coupons`;
   row.querySelector(".enabled").addEventListener("change", (e) => {
+    if (e.target.checked && needsRisk(s)) {
+      e.target.checked = false;
+      return showRisk(s, () => saveSettings({ enabled: { ...settings.enabled, [s.id]: true } }));
+    }
     saveSettings({ enabled: { ...settings.enabled, [s.id]: e.target.checked } });
   });
   row.querySelector(".pin").addEventListener("click", () => {
@@ -193,7 +243,11 @@ for (const s of STORES) {
     else pinned[s.id] = true;
     saveSettings({ pinned });
   });
-  row.querySelector(".run").addEventListener("click", () => chrome.runtime.sendMessage({ type: "run", store: s.id }));
+  row.querySelector(".run").addEventListener("click", () => {
+    const go = () => chrome.runtime.sendMessage({ type: "run", store: s.id });
+    if (needsRisk(s)) showRisk(s, go);
+    else go();
+  });
   rows[s.id] = row;
 }
 runAll.addEventListener("click", () => chrome.runtime.sendMessage({ type: "run" }));

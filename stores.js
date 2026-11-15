@@ -87,6 +87,10 @@ export const STORES = [
   ...albertsonsFamily,
   { id: "walmart", name: "Walmart Cash", adapter: "walmart", host: "www.walmart.com", url: "https://www.walmart.com/offer/all-offers", drivesPage: true },
   { id: "chaseoffers", name: "Chase Offers", adapter: "chase", host: "secure.chase.com", url: "https://secure.chase.com/web/auth/dashboard#/dashboard/merchantOffers/offerCategoriesPage?offerCategoryName=ALL", noDaily: true, drivesPage: true },
+  // Rebate app, not a store: adds Ibotta offers for each checked store Ibotta
+  // covers (rebates.js), one store page at a time. `risky` stores need their
+  // own warning accepted in the popup (settings.riskAccepted) before they run.
+  { id: "ibotta", name: "Ibotta", adapter: "ibotta", host: "ibotta.com", url: "https://ibotta.com/retailers", noDaily: true, drivesPage: true, risky: true },
   ...inDevelopment,
 ];
 

@@ -19,6 +19,7 @@
 //   live:     { heb: "Clipping… 12 clipped.", … } for stores running now, else null
 
 import { STORES, runnable, sortStores } from "./stores.js";
+import { ibottaStoreUrl } from "./rebates.js";
 
 const RUN_TIMEOUT_MS = 60 * 60 * 1000; // Walmart's search pass can run long.
 const DAILY_ALARM = "daily-clip";
@@ -34,6 +35,7 @@ async function getSettings() {
     daily: settings?.daily ?? false,
     dailyHour: Number.isInteger(settings?.dailyHour) ? settings.dailyHour : null,
     notify: settings?.notify ?? true,
+    riskAccepted: settings?.riskAccepted || {},
     // Checked stores in the order the popup shows them.
     checkedInOrder: sortStores(STORES, settings).map((s) => s.id).filter((id) => settings?.enabled?.[id]),
   };
@@ -100,7 +102,34 @@ async function startRunner(tabId, auto) {
   return false;
 }
 
-async function runStore(store, auto, foreground) {
+// Ibotta: one run per checked store that Ibotta covers, added up into one
+// result. Never runs unless the user accepted its warning in the popup.
+async function runIbotta(store, auto, foreground) {
+  const { riskAccepted, checkedInOrder } = await getSettings();
+  if (!riskAccepted[store.id]) {
+    const result = { status: "error", message: "Read and accept the Ibotta warning in CouponSweep first." };
+    await record(store.id, result);
+    return result;
+  }
+  const urls = checkedInOrder.map(ibottaStoreUrl).filter(Boolean);
+  if (!urls.length) {
+    const result = { status: "error", message: "Check at least one store Ibotta has offers for." };
+    await record(store.id, result);
+    return result;
+  }
+  const sum = { status: "ok", total: 0, already: 0, clipped: 0, failed: 0, savings: 0 };
+  for (const url of urls) {
+    const r = await runStore({ ...store, url }, auto, foreground, false);
+    for (const k of ["total", "already", "clipped", "failed", "savings"]) sum[k] += r[k] || 0;
+    if (r.status !== "ok") { sum.status = r.status; sum.message = r.message; break; }
+  }
+  sum.message ??= `Added ${sum.clipped} Ibotta offers${sum.failed ? ` (${sum.failed} failed)` : ""} across ${urls.length} store${urls.length === 1 ? "" : "s"}.`;
+  await record(store.id, sum);
+  return sum;
+}
+
+async function runStore(store, auto, foreground, save = true) {
+  if (store.id === "ibotta" && save) return runIbotta(store, auto, foreground);
   // Reuse a tab that's already on the coupon page; never navigate away from
   // whatever else the user has open on that site.
   // Single-page sites keep every screen on one path, so compare the #route too.
@@ -115,6 +144,14 @@ async function runStore(store, auto, foreground) {
   const tab = existing || await chrome.tabs.create({ url: store.url, active: foreground });
   await setLive(store.id, "Opening page…");
   await waitForLoad(tab.id);
+  // Ibotta sends signed-out visitors (and new devices) to its sign-in site,
+  // where the clipper doesn't load.
+  const landed = await chrome.tabs.get(tab.id).catch(() => null);
+  if (landed?.url && new URL(landed.url).hostname.startsWith("authenticate.")) {
+    const result = { status: "login", message: `Sign in to ${store.name.replace(/ \(.*\)$/, "")} (and finish any check it asks for), then run again.` };
+    if (save) await record(store.id, result);
+    return result;
+  }
 
   const result = await new Promise(async (resolve) => {
     const timer = setTimeout(() => resolve({ status: "error", message: "Timed out." }), RUN_TIMEOUT_MS);
@@ -130,7 +167,8 @@ async function runStore(store, auto, foreground) {
   // Leave the tab open when the user has to do something in it.
   if (!existing && auto && result.status === "ok") chrome.tabs.remove(tab.id).catch(() => {});
 
-  await record(store.id, result);
+  if (save) await record(store.id, result);
+  else await clearLive(store.id).then(() => setLive(store.id, result.message || "Next store…"));
   return result;
 }
 

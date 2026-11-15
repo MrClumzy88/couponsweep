@@ -100,6 +100,20 @@ page at run time.
   `window.next.router.push` so the content script survives; a full page load
   would end the run. The "In-store" toggle is a sticky per-user setting; the
   adapter leaves it alone.
+- **Ibotta** (`content/ibotta.js`, as of 2026-11-15): a rebate app, opt-in
+  and `risky: true` (Ibotta's terms ban "programmatic means"; a closed
+  account loses its cash), so it runs only after the popup's warning is
+  accepted (`settings.riskAccepted.ibotta`, mirrored to the page as
+  `data-gbc-risk`) and never in the daily run. `runIbotta` in background.js
+  runs each checked store's Ibotta page from `rebates.js` in turn. Use the
+  signed-in URLs `/retailers/<Name>/<id>`; `/retailers/groups/…` says
+  "couldn't find that retailer" once signed in. Cards `.item-offer-card`,
+  button `aria-label="Add offer to list"` → "Offer added to list" (Ibotta's
+  code sends PUT `api.ibotta.com/v2/customers/<you>/offers/<id>.json`).
+  "LOCKED" offers have no button. The unfiltered page shows about 100 offers;
+  category filter checkboxes (`?selectedCategoryIds=`) reach the rest. New
+  devices and full page loads can land on `authenticate.ibotta.com` with an
+  emailed 6-digit code: stop and let the user do it.
 - **Chase Offers** (`content/chase.js`): a bank account, so the adapter drives
   the page and stays out of the daily run (`noDaily`). The whole list is in the
   page at `#/dashboard/merchantOffers/offerCategoriesPage?offerCategoryName=ALL`

@@ -96,7 +96,8 @@
     };
     const note = document.createElement("div");
     note.style.cssText = "margin-top:10px;font-size:12px;color:#94a3b8";
-    note.textContent = "Unofficial; not affiliated with any store. Automated clipping may go against the store's terms. Use at your own risk.";
+    note.textContent = adapter.note || "Unofficial; not affiliated with any store. Automated clipping may go against the store's terms. Use at your own risk.";
+    if (adapter.risky) note.style.cssText += ";color:#fde68a;font-weight:600";
     panel.append(title, msg, bar, btn, note);
     document.body.append(panel);
     return panel;
@@ -140,8 +141,13 @@
     fab.onclick = () => {
       // Nothing runs until the user has accepted the notice in the popup
       // (content/bridge.js mirrors that flag onto the page).
-      if (document.documentElement.dataset.gbcAck === "1") return run({ auto: false });
-      setPanel("Open the CouponSweep button in Chrome's toolbar and read the notice there first.");
+      const ack = document.documentElement.dataset.gbcAck === "1";
+      // Risky stores (Ibotta) also need their own warning accepted in the popup.
+      const riskOk = !adapter.risky || document.documentElement.dataset.gbcRisk?.split(",").includes(adapter.id);
+      if (ack && riskOk) return run({ auto: false });
+      setPanel(ack
+        ? `Open the CouponSweep button in Chrome's toolbar, find ${adapter.name} and read its warning there first.`
+        : "Open the CouponSweep button in Chrome's toolbar and read the notice there first.");
       panel.querySelector('[data-role="btn"]').textContent = "Close";
       syncFab();
     };
