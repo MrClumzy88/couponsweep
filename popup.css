@@ -114,3 +114,12 @@ summary { cursor: pointer; color: var(--muted); padding: 4px 0; }
 .daily.sub-option { margin-top: 4px; padding-left: 20px; }
 .daily select { font: inherit; color: var(--fg); background: var(--btn); border: 1px solid var(--line); border-radius: 4px; padding: 1px 4px; }
 .month { margin: 10px 0 0; font-weight: 600; }
+.cashback { margin: 12px 0 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; }
+.cashback summary { color: var(--fg); }
+.cashback summary span { color: var(--muted); font-weight: normal; }
+.cashback p { margin: 6px 0; color: var(--muted); }
+.cashback h2 { font-size: 13px; margin: 10px 0 2px; }
+.cashback ol { margin: 0; padding-left: 18px; }
+.cashback li { display: list-item; padding: 2px 0; border: 0; }
+.cashback a { color: var(--accent); text-decoration: underline; }
+.link-list { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 2px; }

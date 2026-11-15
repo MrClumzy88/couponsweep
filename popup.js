@@ -1,4 +1,5 @@
 import { STORES, sortStores } from "./stores.js";
+import { ibottaStoreUrl, IBOTTA_ALL_GROCERY, CHECKOUT51, FETCH } from "./rebates.js";
 
 const mine = document.getElementById("stores");
 const more = document.getElementById("more-stores");
@@ -116,6 +117,26 @@ function render({ results = {}, live: running, history }) {
   const names = Object.keys(now).map((id) => STORES.find((s) => s.id === id)?.name || id);
   if (busy) live.textContent = `Working on ${names.join(", ")}…`;
   renderMonth(history);
+  renderCashback(ordered.filter(isMine));
+}
+
+// ── "Get cash back too": step-by-step rebate apps, user does the clicking ──
+document.getElementById("c51").href = CHECKOUT51;
+document.getElementById("fetch").href = FETCH;
+const ibottaStores = document.getElementById("ibotta-stores");
+let cashbackKey = "";
+function renderCashback(myStores) {
+  const linked = myStores.filter((s) => ibottaStoreUrl(s.id));
+  const key = linked.map((s) => s.id).join();
+  if (key === cashbackKey && ibottaStores.childElementCount) return;
+  cashbackKey = key;
+  const link = (text, href) => Object.assign(document.createElement("a"), { textContent: text, href, target: "_blank", rel: "noopener" });
+  ibottaStores.replaceChildren(
+    ...linked.map((s) => link(`${s.name} →`, ibottaStoreUrl(s.id))),
+    link(linked.length ? "Other stores →" : "Find your store →", IBOTTA_ALL_GROCERY),
+  );
+  document.getElementById("cashback-count").textContent =
+    linked.length ? `· Ibotta has offers at ${linked.length === 1 ? linked[0].name : `${linked.length} of your stores`}` : "";
 }
 
 // ── Drag to reorder "Your stores" ─────────────────────────────────────────

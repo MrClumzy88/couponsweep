@@ -35,6 +35,31 @@
   <p id="live" class="live" hidden></p>
   <p id="month" class="month" hidden></p>
 
+  <details id="cashback" class="cashback">
+    <summary><strong>Get cash back too</strong> <span id="cashback-count"></span></summary>
+    <p>Rebate apps pay you back after you buy, on top of your coupons.
+    You add these offers yourself: the apps don't allow tools to do it, and a
+    flagged account can lose its cash.</p>
+    <h2>Ibotta</h2>
+    <ol>
+      <li>Sign up or log in at Ibotta (once).</li>
+      <li>Open your store and press <b>+</b> on every offer you might buy:
+        <span id="ibotta-stores" class="link-list"></span></li>
+      <li>In the Ibotta app, link your store card so cash back comes in on its
+        own. No card link? Scan your receipt in the app after you shop.</li>
+    </ol>
+    <h2>Checkout 51</h2>
+    <ol>
+      <li>After you shop, open <a id="c51" target="_blank" rel="noopener">Checkout 51</a>,
+        add the offers that match what you bought, then upload your receipt.</li>
+    </ol>
+    <h2>Fetch</h2>
+    <ol>
+      <li>Scan every grocery receipt in the <a id="fetch" target="_blank" rel="noopener">Fetch</a>
+        app. Nothing to add first.</li>
+    </ol>
+  </details>
+
   <label class="daily"><input type="checkbox" id="daily"> Run once a day automatically</label>
   <label class="daily sub-option">At <select id="daily-hour" title="When the daily run starts. Chrome has to be open then; if it isn't, the run starts next time Chrome opens."><option value="">any time</option></select></label>
   <label class="daily sub-option"><input type="checkbox" id="notify"> Notify me when the daily run finishes</label>

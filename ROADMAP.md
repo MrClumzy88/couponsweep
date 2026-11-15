@@ -14,6 +14,9 @@ Worked on weekly. The core (clipping at every supported store) stays free.
 
 - [x] **Savings total** in the popup ("$184 in coupons clipped this month"). Kroger's list has `savings`; Walgreens and BJ's adapters already read the "$" amount from card text; others need the value parsed from the offer.
 - [x] **Run summary** after the daily run ("12 new coupons clipped at Kroger"), via a notification or the badge.
+- [x] **Cash back too**: a popup section that walks the user through Ibotta,
+  Checkout 51 and Fetch, with a button to each of their stores' Ibotta offer
+  pages. The user presses the offers; Ibotta's terms ban tools doing it.
 - [ ] **BJ's: recover from "Please refresh the page"** by reloading and continuing instead of stopping.
 - [ ] **Firefox version**: background needs `background.scripts` alongside `service_worker`; publish on addons.mozilla.org.
 - [x] **A page per store** ("How to clip all Kroger digital coupons"), which is how OttoClipper ranks in search. Built by `scripts/build-pages.mjs` into `docs/`.
@@ -45,6 +48,9 @@ The basic clipping stays free. Ideas for an optional upgrade:
 - New-coupon notifications.
 - Categories and favourites: clip or highlight the coupons you care about first.
 - Promo codes at checkout.
+- Receipt check: the user adds a photo or the e-receipt from a trip, and an
+  AI reads the items and lists the rebate offers (Ibotta, Checkout 51 and
+  others) they can still claim for it, with the steps to claim each one.
 - Coupon stacking: for an item, show every discount that can combine (store
   digital coupon + manufacturer coupon + rebate apps like Ibotta + the current
   sale), and flag stacks worth making a trip for. Needs offer data from more
