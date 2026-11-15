@@ -68,7 +68,7 @@ function renderMonth(history = []) {
   month.title = "Coupons CouponSweep clipped this month. The dollar amount only counts coupons that show a plain \"$ off\" value, so the real figure is higher.";
 }
 
-function render({ results = {}, live: running, history }) {
+function render({ results = {}, live: running, history, rebates }) {
   const now = liveMap(running);
   const busy = Object.keys(now).length > 0;
   // "Your stores" are the checked or pinned ones, pinned first, then in the
@@ -119,6 +119,67 @@ function render({ results = {}, live: running, history }) {
   if (busy) live.textContent = `Working on ${names.join(", ")}…`;
   renderMonth(history);
   renderCashback(ordered.filter(isMine));
+  renderRebates(rebates, now.ibotta, results.ibotta, busy);
+}
+
+// ── "Rebates for what you buy" (background.js runIbotta, matcher.js) ──────
+const IBOTTA = STORES.find((s) => s.id === "ibotta");
+const findRebates = document.getElementById("find-rebates");
+findRebates.addEventListener("click", () => {
+  const go = () => chrome.runtime.sendMessage({ type: "run", store: "ibotta" });
+  if (needsRisk(IBOTTA)) showRisk(IBOTTA, go);
+  else go();
+});
+const day = (ms) => new Date(ms).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+function offerLine(h, extra) {
+  const li = document.createElement("li");
+  const a = Object.assign(document.createElement("a"), { href: h.offer.url, target: "_blank", rel: "noopener", textContent: `${h.offer.value || ""} ${h.offer.name}`.trim() });
+  li.append(a);
+  const note = document.createElement("span");
+  note.className = "why";
+  note.textContent = ` ${h.offer.activated ? "✓ on your list. " : ""}${extra || ""}`;
+  li.append(note);
+  li.title = h.why || "";
+  return li;
+}
+function renderRebates(rebates, running, result, busy) {
+  findRebates.disabled = busy || !settings.acknowledged;
+  const status = document.getElementById("rebates-status");
+  status.hidden = !(running || result);
+  status.textContent = running || (result ? `${result.message} · ${ago(result.at)}` : "");
+  const box = document.getElementById("rebates");
+  box.hidden = !rebates;
+  if (!rebates) return;
+
+  // Receipts young enough to scan, soonest deadline first.
+  const scan = (rebates.receipts || []).filter((x) => x.deadline > Date.now() && x.hits.some((h) => h.level === "exact"));
+  document.getElementById("scan-title").hidden = !scan.length;
+  document.getElementById("scan-list").replaceChildren(...scan.map((x) => {
+    const li = document.createElement("li");
+    li.className = "receipt";
+    const head = document.createElement("strong");
+    head.textContent = `${x.receipt.store}, ${day(Date.parse(x.receipt.at))} · scan by ${day(x.deadline)}`;
+    const ul = document.createElement("ul");
+    ul.append(...x.hits.filter((h) => h.level === "exact").map((h) => offerLine(h, h.items.length ? `(${h.items[0].toLowerCase()})` : "")));
+    li.append(head, ul);
+    return li;
+  }));
+
+  const exact = (rebates.usual || []).filter((m) => m.level === "exact");
+  document.getElementById("usual-title").textContent = `For things you usually buy (${exact.length})`;
+  document.getElementById("usual-list").replaceChildren(...(exact.length
+    ? exact.map((m) => offerLine(m, `${m.store} · you bought ${m.items[0].toLowerCase()}`))
+    : [Object.assign(document.createElement("li"), { textContent: "No exact matches right now. Ibotta's offers change every week." })]));
+
+  const maybe = [
+    ...(rebates.usual || []).filter((m) => m.level === "possible"),
+    ...(rebates.receipts || []).flatMap((x) => x.hits.filter((h) => h.level === "possible")),
+  ];
+  const seen = new Set();
+  const uniq = maybe.filter((m) => !seen.has(m.offer.id) && seen.add(m.offer.id));
+  document.getElementById("possible-box").hidden = !uniq.length;
+  document.getElementById("possible-title").textContent = `Maybe: check these yourself (${uniq.length})`;
+  document.getElementById("possible-list").replaceChildren(...uniq.map((m) => offerLine(m, `for ${m.items[0]?.toLowerCase() || "?"}. ${m.why}`)));
 }
 
 // ── "Get cash back too": step-by-step rebate apps, user does the clicking ──
@@ -278,7 +339,7 @@ async function checkForUpdate() {
 checkForUpdate();
 
 const refresh = async () => {
-  const data = await chrome.storage.local.get(["settings", "results", "live", "history"]);
+  const data = await chrome.storage.local.get(["settings", "results", "live", "history", "rebates"]);
   settings = data.settings || {};
   render(data);
 };

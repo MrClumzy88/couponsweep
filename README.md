@@ -41,7 +41,7 @@ and sends nothing anywhere except to the store itself.
 | **CVS ExtraCare** coupons (Send to card) | ✅ Working | Presses the page's own "Send to card" buttons (CVS only accepts its own page's requests). Sends ExtraBucks rewards to your card too, which spends nothing. |
 | **Walgreens** digital coupons | ✅ Working | Presses the page's own "Clip" buttons. Accounts hold up to 200 clipped coupons, so the biggest dollar amounts go first. |
 | **BJ's Wholesale Club** coupons | ✅ Working | Presses the page's own "CLIP" buttons on My Coupons, biggest dollar amounts first. |
-| **Ibotta** (cash back offers) | ✅ Working · ⚠ use at your own risk | Presses Ibotta's own **+** buttons on the offer page for each store you've checked. Ibotta's terms ban tools like this and Ibotta can close an account and keep its cash, so it runs only after you accept a warning, and only when you start it. |
+| **Ibotta** (cash back offers) | ✅ Working · ⚠ use at your own risk | **Find my rebates:** reads your Albertsons-family receipts and presses Ibotta's own **+** only on offers whose product list exactly matches what you buy, and tells you which recent receipt to scan in the Ibotta app. Ibotta's terms ban tools like this and Ibotta can close an account and keep its cash, so it runs only after you accept a warning, and only when you start it. |
 | **Chase Offers** (credit card offers) | ✅ Working | Presses the page's own offer tiles, slowly, for the card the page has open. Only runs when you start it, never in the daily run. |
 
 Want another store? [Request it](https://github.com/MrClumzy88/couponsweep/issues/new?template=store_request.yml).

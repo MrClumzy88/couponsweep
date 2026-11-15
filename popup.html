@@ -56,11 +56,29 @@
 
   <details id="cashback" class="cashback">
     <summary><strong>Get cash back too</strong> <span id="cashback-count"></span></summary>
-    <p>Rebate apps pay you back after you buy, on top of your coupons.
-    The safe way is to add the offers yourself, below. CouponSweep can also add
-    Ibotta offers for you (<em>Ibotta</em> under More stores), but
-    Ibotta's terms ban that and it can cost you your Ibotta cash.</p>
-    <h2>Ibotta</h2>
+    <p>Rebate apps pay you back after you buy, on top of your coupons.</p>
+
+    <h2>Rebates for what you buy</h2>
+    <p>CouponSweep reads your store receipts (Albertsons, Tom Thumb, Safeway
+    and their sister stores), finds the Ibotta offers that exactly match what
+    you buy, and adds only those. Ibotta's terms ban tools doing this; it can
+    cost you your Ibotta cash.</p>
+    <button id="find-rebates" class="primary">Find my rebates</button>
+    <p id="rebates-status" class="hint" hidden></p>
+    <div id="rebates" hidden>
+      <h3 id="scan-title">Scan these receipts in the Ibotta app</h3>
+      <ul id="scan-list" class="rebate-list"></ul>
+      <h3 id="usual-title">For things you usually buy</h3>
+      <p class="hint">Added before you shop, these pay automatically if your
+      store card is linked in the Ibotta app.</p>
+      <ul id="usual-list" class="rebate-list"></ul>
+      <details id="possible-box">
+        <summary id="possible-title">Maybe: check these yourself</summary>
+        <ul id="possible-list" class="rebate-list"></ul>
+      </details>
+    </div>
+
+    <h2>Ibotta by hand</h2>
     <ol>
       <li>Sign up or log in at Ibotta (once).</li>
       <li>Open your store and press <b>+</b> on every offer you might buy:

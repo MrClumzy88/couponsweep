@@ -155,7 +155,7 @@
   }
 
   // ── Run ────────────────────────────────────────────────────────────────
-  async function run({ auto }) {
+  async function run({ auto, opts = {} }) {
     if (running || !adapter) return;
     running = true;
     stopRequested = false;
@@ -170,6 +170,9 @@
     };
 
     const ctx = {
+      opts, // Per-run settings from the background (Ibotta's mode and offer ids).
+      summary: null, // An adapter can set its own closing message.
+      emit,
       sleep,
       between,
       dollarsOff,
@@ -204,9 +207,9 @@
       report("Looking up offers…");
       await adapter.run(ctx);
       const left = result.total - result.already;
-      result.message = left === 0
+      result.message = ctx.summary || (left === 0
         ? `All ${result.total} offers were already clipped.`
-        : `Clipped ${result.clipped} of ${left} new offers${result.failed ? ` (${result.failed} failed)` : ""}.`;
+        : `Clipped ${result.clipped} of ${left} new offers${result.failed ? ` (${result.failed} failed)` : ""}.`);
     } catch (e) {
       if (e instanceof StopRun) {
         result.status = e.status;

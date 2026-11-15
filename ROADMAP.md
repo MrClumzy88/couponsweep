@@ -17,6 +17,14 @@ Worked on weekly. The core (clipping at every supported store) stays free.
 - [x] **Cash back too**: a popup section that walks the user through Ibotta,
   Checkout 51 and Fetch, with a button to each of their stores' Ibotta offer
   pages. The user presses the offers; Ibotta's terms ban tools doing it.
+- [x] **Find my rebates** (free for now; a candidate for the paid tier): reads
+  Albertsons-family receipts, finds the Ibotta offers whose product lists
+  exactly match what you usually buy (added before you shop: pays through a
+  linked store card) or bought in the last 7 days (popup says which receipt
+  to scan in the Ibotta app, by when). Only exact matches are added; "maybe"
+  matches are listed for the user to check. Next: receipts from Kroger and
+  other stores, and Checkout 51 / Fetch.
+- [ ] **Checkout 51 and Fetch** in the same pipeline.
 - [ ] **BJ's: recover from "Please refresh the page"** by reloading and continuing instead of stopping.
 - [ ] **Firefox version**: background needs `background.scripts` alongside `service_worker`; publish on addons.mozilla.org.
 - [x] **A page per store** ("How to clip all Kroger digital coupons"), which is how OttoClipper ranks in search. Built by `scripts/build-pages.mjs` into `docs/`.

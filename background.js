@@ -20,6 +20,7 @@
 
 import { STORES, runnable, sortStores } from "./stores.js";
 import { ibottaStoreUrl } from "./rebates.js";
+import { usualItems, matchUsual, matchReceipts } from "./matcher.js";
 
 const RUN_TIMEOUT_MS = 60 * 60 * 1000; // Walmart's search pass can run long.
 const DAILY_ALARM = "daily-clip";
@@ -91,10 +92,10 @@ function waitForLoad(tabId) {
 }
 
 // The content scripts load at document_idle; retry until the runner answers.
-async function startRunner(tabId, auto) {
+async function startRunner(tabId, auto, opts) {
   for (let i = 0; i < 20; i++) {
     try {
-      const res = await chrome.tabs.sendMessage(tabId, { type: "gbc-run", auto });
+      const res = await chrome.tabs.sendMessage(tabId, { type: "gbc-run", auto, opts });
       if (res?.ready) return true;
     } catch {}
     await new Promise((r) => setTimeout(r, 1000));
@@ -102,33 +103,127 @@ async function startRunner(tabId, auto) {
   return false;
 }
 
-// Ibotta: one run per checked store that Ibotta covers, added up into one
-// result. Never runs unless the user accepted its warning in the popup.
+// ── Rebates: receipts → matching Ibotta offers ────────────────────────────
+// Storage:
+//   purchases:    { receipts: { <id>: {id, at, banner, store, total, items} }, syncedAt }
+//                 your in-store receipts from Albertsons-family sites (120 days)
+//   ibottaOffers: { <ibotta retailer id>: { at, offers: [...] } }
+//   rebates:      { at, usual: [...], receipts: [...] } what the popup shows
+// All of it stays in chrome.storage.local.
+
+const PURCHASE_DAYS = 120;
+const pendingPurchases = new Map(); // tabId -> resolve(data)
+const ALBERTSONS = STORES.filter((s) => s.adapter === "albertsons");
+const ibottaRetailerId = (storeId) => ibottaStoreUrl(storeId)?.match(/\/(\d+)$/)?.[1] || null;
+
+// Opens the purchases page on an Albertsons-family site (one account covers
+// every banner) and reads any receipts not already saved.
+async function syncPurchases(checkedInOrder) {
+  const site = ALBERTSONS.find((s) => checkedInOrder.includes(s.id)) || ALBERTSONS[0];
+  const url = `https://${site.host}/order-account/orders`;
+  const { purchases = { receipts: {} } } = await chrome.storage.local.get("purchases");
+  const existing = (await chrome.tabs.query({ url: `https://${site.host}/order-account/orders*` }))[0];
+  const tab = existing || await chrome.tabs.create({ url, active: false });
+  await setLive("ibotta", `Reading your ${site.name} receipts…`);
+  await waitForLoad(tab.id);
+  const data = await new Promise(async (resolve) => {
+    const timer = setTimeout(() => resolve({ error: "error", message: "Reading receipts timed out." }), 10 * 60 * 1000);
+    pendingPurchases.set(tab.id, (d) => { clearTimeout(timer); resolve(d); });
+    let ok = false;
+    for (let i = 0; i < 20 && !ok; i++) {
+      try { ok = (await chrome.tabs.sendMessage(tab.id, { type: "gbc-sync-purchases", known: Object.keys(purchases.receipts), days: PURCHASE_DAYS }))?.ready; } catch {}
+      if (!ok) await new Promise((r) => setTimeout(r, 1000));
+    }
+    if (!ok) { clearTimeout(timer); resolve({ error: "error", message: `${site.name}'s purchases page didn't load.` }); }
+  });
+  pendingPurchases.delete(tab.id);
+  if (!existing && !data.error) chrome.tabs.remove(tab.id).catch(() => {});
+  if (data.error) return { ...data, site };
+
+  const cutoff = Date.now() - (PURCHASE_DAYS + 30) * 864e5;
+  const receipts = Object.fromEntries(
+    [...Object.values(purchases.receipts), ...(data.receipts || [])]
+      .filter((r) => Date.parse(r.at) >= cutoff)
+      .map((r) => [r.id, r]),
+  );
+  await chrome.storage.local.set({ purchases: { receipts, syncedAt: Date.now() } });
+  return { receipts: Object.values(receipts), added: (data.receipts || []).length, site };
+}
+
+const offerLink = (o) => `https://ibotta.com/offers/${encodeURIComponent(String(o.name || "offer").replace(/[^\w]+/g, "_"))}/${o.id}`;
+const slim = (o) => ({ id: o.id, name: o.name, value: o.value, amount: o.amount, description: o.description, activated: o.activated, url: offerLink(o) });
+
+// Ibotta: read your receipts, read each store's Ibotta offers, then add only
+// the offers that exactly match what you buy (before you shop: works with a
+// linked store card) or bought in the last 7 days (scan that receipt in the
+// Ibotta app). Never runs unless the user accepted its warning in the popup.
 async function runIbotta(store, auto, foreground) {
+  const fail = async (status, message) => { const r = { status, message }; await record(store.id, r); return r; };
   const { riskAccepted, checkedInOrder } = await getSettings();
-  if (!riskAccepted[store.id]) {
-    const result = { status: "error", message: "Read and accept the Ibotta warning in CouponSweep first." };
-    await record(store.id, result);
-    return result;
+  if (!riskAccepted[store.id]) return fail("error", "Read and accept the Ibotta warning in CouponSweep first.");
+
+  // 1. Receipts.
+  const sync = await syncPurchases(checkedInOrder);
+  if (sync.error) return fail(sync.error, `${sync.site.name}: ${sync.message}`);
+  const receipts = sync.receipts;
+
+  // 2. Which Ibotta store pages: where you shop (receipts) plus checked stores.
+  const recent = receipts.filter((r) => Date.now() - Date.parse(r.at) <= PURCHASE_DAYS * 864e5);
+  const storeIds = [...new Set([...recent.map((r) => r.banner), ...checkedInOrder])].filter((id) => ibottaStoreUrl(id));
+  if (!storeIds.length) return fail("error", "None of your stores are on Ibotta yet.");
+
+  // 3. Read each store's offers.
+  const { ibottaOffers = {} } = await chrome.storage.local.get("ibottaOffers");
+  const rids = [...new Set(storeIds.map(ibottaRetailerId))];
+  for (const rid of rids) {
+    const id = storeIds.find((s) => ibottaRetailerId(s) === rid);
+    const r = await runStore({ ...store, url: ibottaStoreUrl(id) }, auto, foreground, false, { mode: "scan" });
+    if (r.status !== "ok") return fail(r.status, r.message);
   }
-  const urls = checkedInOrder.map(ibottaStoreUrl).filter(Boolean);
-  if (!urls.length) {
-    const result = { status: "error", message: "Check at least one store Ibotta has offers for." };
-    await record(store.id, result);
-    return result;
+  Object.assign(ibottaOffers, (await chrome.storage.local.get("ibottaOffers")).ibottaOffers || {});
+  const offersFor = (banner) => ibottaOffers[ibottaRetailerId(banner)]?.offers || [];
+
+  // 4. Match.
+  const usual = [];
+  for (const rid of rids) {
+    const banners = storeIds.filter((s) => ibottaRetailerId(s) === rid);
+    const items = usualItems(recent.filter((r) => banners.includes(r.banner)));
+    for (const m of matchUsual(items, ibottaOffers[rid]?.offers || [])) {
+      usual.push({ store: STORES.find((s) => s.id === banners[0])?.name || banners[0], retailerId: rid, level: m.level, why: m.why, items: m.items, offer: slim(m.offer) });
+    }
   }
+  const toScan = matchReceipts(recent, offersFor).map((x) => ({
+    ...x,
+    retailerId: ibottaRetailerId(x.receipt.banner),
+    hits: x.hits.map((h) => ({ level: h.level, why: h.why, items: h.items, offer: slim(h.offer) })),
+  }));
+
+  // 5. Add the exact matches that aren't on the list yet, one store page at a time.
+  const addIds = new Map();
+  const want = (rid, o) => { if (!o.activated) { if (!addIds.has(rid)) addIds.set(rid, new Set()); addIds.get(rid).add(o.id); } };
+  for (const m of usual) if (m.level === "exact") want(m.retailerId, m.offer);
+  for (const x of toScan) for (const h of x.hits) if (h.level === "exact") want(x.retailerId, h.offer);
   const sum = { status: "ok", total: 0, already: 0, clipped: 0, failed: 0, savings: 0 };
-  for (const url of urls) {
-    const r = await runStore({ ...store, url }, auto, foreground, false);
-    for (const k of ["total", "already", "clipped", "failed", "savings"]) sum[k] += r[k] || 0;
+  for (const [rid, ids] of addIds) {
+    const id = storeIds.find((s) => ibottaRetailerId(s) === rid);
+    const r = await runStore({ ...store, url: ibottaStoreUrl(id) }, auto, foreground, false, { mode: "add", ids: [...ids] });
+    sum.clipped += r.clipped || 0;
+    sum.failed += r.failed || 0;
     if (r.status !== "ok") { sum.status = r.status; sum.message = r.message; break; }
   }
-  sum.message ??= `Added ${sum.clipped} Ibotta offers${sum.failed ? ` (${sum.failed} failed)` : ""} across ${urls.length} store${urls.length === 1 ? "" : "s"}.`;
+  for (const [, ids] of addIds) sum.total += ids.size;
+
+  await chrome.storage.local.set({ rebates: { at: Date.now(), receiptsRead: receipts.length, usual, receipts: toScan } });
+  const exact = usual.filter((m) => m.level === "exact").length;
+  const scans = toScan.filter((x) => x.hits.some((h) => h.level === "exact")).length;
+  sum.message ??= `${exact} rebate${exact === 1 ? "" : "s"} for things you buy` +
+    (sum.clipped ? ` (${sum.clipped} added)` : "") +
+    (scans ? `; ${scans} receipt${scans === 1 ? "" : "s"} to scan in Ibotta` : "") + ".";
   await record(store.id, sum);
   return sum;
 }
 
-async function runStore(store, auto, foreground, save = true) {
+async function runStore(store, auto, foreground, save = true, opts = {}) {
   if (store.id === "ibotta" && save) return runIbotta(store, auto, foreground);
   // Reuse a tab that's already on the coupon page; never navigate away from
   // whatever else the user has open on that site.
@@ -156,7 +251,7 @@ async function runStore(store, auto, foreground, save = true) {
   const result = await new Promise(async (resolve) => {
     const timer = setTimeout(() => resolve({ status: "error", message: "Timed out." }), RUN_TIMEOUT_MS);
     pending.set(tab.id, (r) => { clearTimeout(timer); resolve(r); });
-    if (!(await startRunner(tab.id, auto))) {
+    if (!(await startRunner(tab.id, auto, opts))) {
       pending.delete(tab.id);
       clearTimeout(timer);
       resolve({ status: "error", message: "The page didn't load the clipper. Reload it and try again." });
@@ -280,7 +375,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     setTimeout(() => sendResponse(true), Math.min(Number(msg.ms) || 0, 60000));
     return true;
   }
-  if (msg.type === "gbc:progress" && sender.tab) {
+  if (msg.type === "gbc:offers" && sender.tab && msg.data?.retailerId) {
+    // Ibotta's offer list for one store, from content/ibotta.js.
+    update("ibottaOffers", (all = {}) => ({ ...all, [msg.data.retailerId]: { at: Date.now(), offers: msg.data.offers || [] } }));
+  } else if (msg.type === "gbc:purchases" && sender.tab) {
+    pendingPurchases.get(sender.tab.id)?.(msg.data || {});
+  } else if (msg.type === "gbc:purchases-progress" && sender.tab) {
+    setLive("ibotta", `Reading receipts… ${msg.data.done} of ${msg.data.of}`);
+  } else if (msg.type === "gbc:progress" && sender.tab) {
     setLive(msg.data.store, msg.data.text);
   } else if (msg.type === "gbc:done" && sender.tab) {
     const resolve = pending.get(sender.tab.id);

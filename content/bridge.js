@@ -6,10 +6,17 @@
 // Events cross worlds as JSON strings, since object `detail`s don't.
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg?.type === "gbc-sync-purchases") {
+    // Albertsons-family purchases page (content/albertsons-purchases.js).
+    window.dispatchEvent(new CustomEvent("gbc:sync-purchases", { detail: JSON.stringify({ known: msg.known || [], days: msg.days }) }));
+    sendResponse({ ready: true });
+    return;
+  }
   if (msg?.type !== "gbc-run") return;
   const ready = document.documentElement.dataset.gbcReady === "1";
   if (ready) {
-    window.dispatchEvent(new CustomEvent("gbc:run", { detail: JSON.stringify({ auto: !!msg.auto }) }));
+    // `opts` carries per-run settings for adapters that have modes (Ibotta).
+    window.dispatchEvent(new CustomEvent("gbc:run", { detail: JSON.stringify({ auto: !!msg.auto, opts: msg.opts || {} }) }));
   }
   sendResponse({ ready });
 });
@@ -38,6 +45,9 @@ function forward(type) {
 }
 forward("gbc:progress");
 forward("gbc:done");
+forward("gbc:offers"); // Ibotta offer list, for the rebate matcher.
+forward("gbc:purchases"); // Receipts, for the rebate matcher.
+forward("gbc:purchases-progress");
 
 // Pauses between clips are timed by the service worker, which Chrome doesn't
 // throttle the way it throttles timers in background tabs.
