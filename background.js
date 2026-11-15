@@ -151,6 +151,68 @@ async function syncPurchases(checkedInOrder) {
   return { receipts: Object.values(receipts), added: (data.receipts || []).length, site };
 }
 
+// ── Receipt image (content/albertsons-receipt.js) ─────────────────────────
+// Scrolls through an Albertsons-family receipt-details page, screenshots
+// each screenful and stitches the receipt block into one PNG (data URL).
+// captureVisibleTab only sees the tab that's showing, and Chrome allows about
+// two captures a second.
+async function captureReceipt(tabId) {
+  const tab = await chrome.tabs.get(tabId);
+  const ask = (m) => chrome.tabs.sendMessage(tabId, m);
+  let g = null;
+  for (let i = 0; i < 20 && !(g && !g.error); i++) {
+    try { g = await ask({ type: "receipt-geometry" }); } catch {}
+    if (!g || g.error) await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!g || g.error) return { error: g?.error || "The receipt page didn't load." };
+  try {
+    const shots = [];
+    for (let y = g.top; y < g.top + g.height; y += g.vh) {
+      const { y: at } = await ask({ type: "receipt-scroll", y });
+      const url = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" });
+      shots.push({ at, bitmap: await createImageBitmap(await (await fetch(url)).blob()) });
+      await new Promise((r) => setTimeout(r, 600));
+    }
+    const s = g.dpr;
+    const canvas = new OffscreenCanvas(Math.round(g.width * s), Math.round(g.height * s));
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    for (const { at, bitmap } of shots) {
+      // This screenful shows the page from `at` to `at + vh`.
+      const from = Math.max(g.top, at);
+      const to = Math.min(g.top + g.height, at + g.vh);
+      if (to <= from) continue;
+      ctx.drawImage(bitmap,
+        Math.round(g.left * s), Math.round((from - at) * s), Math.round(g.width * s), Math.round((to - from) * s),
+        0, Math.round((from - g.top) * s), Math.round(g.width * s), Math.round((to - from) * s));
+    }
+    const bytes = new Uint8Array(await (await canvas.convertToBlob({ type: "image/png" })).arrayBuffer());
+    let bin = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return { image: `data:image/png;base64,${btoa(bin)}`, barcode: g.barcode, date: g.date };
+  } catch (e) {
+    return { error: `Couldn't take the picture: ${e?.message || e}. Open the receipt, then press Save receipt image in CouponSweep.` };
+  } finally {
+    ask({ type: "receipt-restore" }).catch(() => {});
+  }
+}
+
+// Checkout 51 for one receipt: open its receipt page, picture it, then open
+// the upload page with that picture attached and the matching offers ticked
+// (content/checkout51.js). The user checks it and submits.
+async function prepareC51({ tx, host, ids = [], label, tabId }) {
+  let tab = tabId ? await chrome.tabs.get(tabId) : null;
+  if (!tab) {
+    tab = await chrome.tabs.create({ url: `https://${host}/order-account/orders/instore/${tx}/receipt-details`, active: true });
+    await waitForLoad(tab.id);
+  }
+  const shot = await captureReceipt(tab.id);
+  await chrome.storage.local.set({ c51Prefill: { ids, label, at: Date.now(), image: shot.image || null, imageName: `receipt-${(shot.date || "").replace(/[^\w]+/g, "-") || tx || "albertsons"}.png` } });
+  await chrome.tabs.create({ url: "https://www.checkout51.com/account/upload", active: true });
+  return shot.error ? { error: shot.error } : { ok: true };
+}
+
 const offerLink = (o) => `https://ibotta.com/offers/${encodeURIComponent(String(o.name || "offer").replace(/[^\w]+/g, "_"))}/${o.id}`;
 const slim = (o) => ({ id: o.id, name: o.name, value: o.value, amount: o.amount, description: o.description, activated: o.activated, url: offerLink(o) });
 
@@ -191,7 +253,7 @@ async function checkoutFiftyOne(recent) {
       if (m) hits.push(limit({ offer: o, level: m.level, why: m.why, items }, qty));
     }
     const merged = best(hits).map((h) => ({ ...h, offer: slimC51(h.offer) }));
-    if (merged.length) receipts.push({ receipt: { id: r.id, at: r.at, store: r.store, banner: r.banner, total: r.total }, deadline: week.end, hits: merged });
+    if (merged.length) receipts.push({ receipt: { id: r.id, tx: r.tx, at: r.at, store: r.store, banner: r.banner, host: STORES.find((s) => s.id === r.banner)?.host, total: r.total }, deadline: week.end, hits: merged });
   }
   const usual = best(matchUsual(usualItems(recent), offers).map((m) => limit(m))).map((m) => ({ ...m, offer: slimC51(m.offer) }));
   return { weekEnd: week.end, receipts, usual };
@@ -440,6 +502,15 @@ async function syncAlarm() {
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === "sleep") {
     setTimeout(() => sendResponse(true), Math.min(Number(msg.ms) || 0, 60000));
+    return true;
+  }
+  if (msg.type === "capture-receipt") {
+    // From the popup: the receipt page the user is looking at.
+    captureReceipt(msg.tabId).then(sendResponse);
+    return true;
+  }
+  if (msg.type === "c51-prepare") {
+    prepareC51(msg).then(sendResponse);
     return true;
   }
   if (msg.type === "gbc:offers" && sender.tab && msg.data?.retailerId) {

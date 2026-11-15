@@ -46,6 +46,7 @@
   // Sale lines only; leaves out coupons and markers like "35% OFF FRESH ITEMS".
   const compact = (list, detail) => ({
     id: list._id,
+    tx: detail?.transactionId || null, // In the receipt-details page's URL.
     // The site writes local store time with a "Z"; drop it so it reads as local.
     at: String(list.posDateTime || "").replace(/(\.\d+)?Z$/, ""),
     banner: list.banner,

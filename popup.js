@@ -135,6 +135,49 @@ document.getElementById("ibotta-on").addEventListener("click", (e) => {
 let fetchScanned = {};
 try { chrome.storage.local.get("fetchScanned").then((d) => { fetchScanned = d.fetchScanned || {}; }); } catch {}
 
+// "This receipt": on an Albertsons-family receipt-details page (the click on
+// the toolbar button lets CouponSweep picture that tab).
+(async () => {
+  let tab;
+  try { [tab] = await chrome.tabs.query({ active: true, currentWindow: true }); } catch { return; }
+  const m = tab?.url?.match(/^https:\/\/([^/]+)\/order-account\/orders\/instore\/([^/]+)\/(receipt-details|email-receipt)/);
+  if (!m || !STORES.some((s) => s.adapter === "albertsons" && s.host === m[1])) return;
+  const [, host, tx] = m;
+  const box = document.getElementById("this-receipt");
+  const status = document.getElementById("receipt-status");
+  box.hidden = false;
+  const say = (t) => { status.hidden = !t; status.textContent = t; };
+  const detailsUrl = `https://${host}/order-account/orders/instore/${tx}/receipt-details`;
+
+  document.getElementById("save-receipt").addEventListener("click", async () => {
+    if (!tab.url.includes("/receipt-details")) { await chrome.tabs.update(tab.id, { url: detailsUrl }); say("Opened the receipt. Press Save again once it shows."); return; }
+    say("Taking the picture…");
+    const r = await chrome.runtime.sendMessage({ type: "capture-receipt", tabId: tab.id });
+    if (r?.error) return say(r.error);
+    const a = Object.assign(document.createElement("a"), { href: r.image, download: `receipt-${(r.date || tx).replace(/[^\w]+/g, "-")}.png` });
+    a.click();
+    say("Saved to your Downloads folder.");
+  });
+
+  document.getElementById("receipt-c51").addEventListener("click", async () => {
+    if (!tab.url.includes("/receipt-details")) { await chrome.tabs.update(tab.id, { url: detailsUrl }); say("Opened the receipt. Press the button again once it shows."); return; }
+    // Tick this receipt's matches, if Find my rebates found any.
+    const { rebates } = await chrome.storage.local.get("rebates");
+    const hit = rebates?.c51?.receipts?.find((x) => x.receipt.tx === tx);
+    const ids = (hit?.hits || []).filter((h) => h.level === "exact").map((h) => h.offer.id);
+    say("Taking the picture…");
+    const r = await chrome.runtime.sendMessage({ type: "c51-prepare", tabId: tab.id, tx, host, ids, label: hit ? `${hit.receipt.store}, ${day(Date.parse(hit.receipt.at))}` : "This receipt" });
+    say(r?.error || "Opened Checkout 51 with the picture attached.");
+  });
+
+  // Albertsons' own "Email receipt" page: the user presses Send (to their own
+  // address). Fetch can collect e-receipts from a linked email account.
+  document.getElementById("receipt-email").addEventListener("click", () => {
+    chrome.tabs.update(tab.id, { url: `https://${host}/order-account/orders/instore/${tx}/email-receipt` });
+    say("Press Send on the store's page. In the Fetch app, link that email under eReceipts.");
+  });
+})();
+
 // Checkout 51: one entry per receipt from this offer week, with a button that
 // opens the upload page with the matching offers ticked (content/checkout51.js).
 function renderC51(c51) {
@@ -153,11 +196,19 @@ function renderC51(c51) {
     if (exact.length) {
       const btn = Object.assign(document.createElement("button"), { textContent: "Fill in Checkout 51 →" });
       btn.addEventListener("click", async () => {
-        await chrome.storage.local.set({ c51Prefill: { ids: exact.map((h) => h.offer.id), label: head.textContent, at: Date.now() } });
+        const ids = exact.map((h) => h.offer.id);
+        if (x.receipt.tx && x.receipt.host) {
+          // Pictures the store's own receipt page, then fills in Checkout 51.
+          btn.disabled = true;
+          btn.textContent = "Taking the receipt picture…";
+          chrome.runtime.sendMessage({ type: "c51-prepare", tx: x.receipt.tx, host: x.receipt.host, ids, label: head.textContent });
+          return;
+        }
+        await chrome.storage.local.set({ c51Prefill: { ids, label: head.textContent, at: Date.now() } });
         chrome.tabs.create({ url: C51_UPLOAD });
       });
       const how = Object.assign(document.createElement("p"), { className: "hint",
-        textContent: "Opens the upload page with these offers ticked. Add a photo of the paper receipt (or a screenshot of the receipt on the store's site; Checkout 51 may only take paper) and submit." });
+        textContent: "Takes a picture of the store's own digital receipt (items, total and barcode), then opens Checkout 51's upload page with it attached and these offers ticked. Check it and submit." });
       li.append(btn, how);
     }
     return li;

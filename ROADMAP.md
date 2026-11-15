@@ -28,16 +28,19 @@ Worked on weekly. The core (clipping at every supported store) stays free.
   offers (public JSON, read-only) matched to this week's receipts, with a
   button that opens the upload page with the matching offers ticked; Fetch
   gets a list of receipts still inside its 14-day window to scan.
-- [ ] **Receipt image for Checkout 51**: Albertsons' receipt-details page
+- [x] **Receipt image for Checkout 51** (built; test in real Chrome): Albertsons' receipt-details page
   (`/order-account/orders/instore/<transactionId>/receipt-details`) is the
   full receipt, including the same barcode as the paper one (store, lane,
   transaction, date, time). Save it as one tall PNG and attach it on the
   upload page. Checkout 51 takes JPEG/PNG screenshots of e-receipts (not
-  PDFs); whether it takes them for in-store trips needs a test.
-- [ ] **Albertsons "Email receipt" → Fetch eReceipts**: the receipt page can
+  PDFs); whether it takes them for in-store trips needs a test. The popup's
+  "This receipt" panel saves it, and "Fill in Checkout 51" attaches it.
+- [ ] **Albertsons "Email receipt" → Fetch eReceipts** (popup opens the
+  store's email page; the user presses Send): the receipt page can
   email the receipt to the account address. If Fetch reads Albertsons
   emails from a linked Gmail, receipts would reach Fetch with no scanning.
   Needs a test with one receipt.
+- [ ] **coupons.com**: explore next (printable and digital manufacturer coupons).
 - [ ] **BJ's: recover from "Please refresh the page"** by reloading and continuing instead of stopping.
 - [ ] **Firefox version**: background needs `background.scripts` alongside `service_worker`; publish on addons.mozilla.org.
 - [x] **A page per store** ("How to clip all Kroger digital coupons"), which is how OttoClipper ranks in search. Built by `scripts/build-pages.mjs` into `docs/`.

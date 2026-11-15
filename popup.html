@@ -41,6 +41,17 @@
     </div>
   </div>
 
+  <!-- Shown when the open tab is an Albertsons-family receipt page. -->
+  <div id="this-receipt" class="this-receipt" hidden>
+    <strong>This receipt</strong>
+    <p class="hint">The store's own digital receipt, with the same barcode as
+    the paper one.</p>
+    <button id="save-receipt">Save receipt image</button>
+    <button id="receipt-c51">Upload to Checkout 51 →</button>
+    <button id="receipt-email">Email it to me (for Fetch) →</button>
+    <p id="receipt-status" class="hint" hidden></p>
+  </div>
+
   <p id="empty" class="hint" hidden>Check the stores you shop at.</p>
   <ul id="stores"></ul>
 

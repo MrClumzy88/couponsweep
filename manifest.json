@@ -14,7 +14,8 @@
   "permissions": [
     "storage",
     "alarms",
-    "notifications"
+    "notifications",
+    "activeTab"
   ],
   "host_permissions": [
     "https://www.heb.com/*",
@@ -338,6 +339,33 @@
       ],
       "js": [
         "content/checkout51.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.albertsons.com/order-account/*",
+        "https://www.tomthumb.com/order-account/*",
+        "https://www.safeway.com/order-account/*",
+        "https://www.vons.com/order-account/*",
+        "https://www.randalls.com/order-account/*",
+        "https://www.jewelosco.com/order-account/*",
+        "https://www.acmemarkets.com/order-account/*",
+        "https://www.shaws.com/order-account/*",
+        "https://www.starmarket.com/order-account/*",
+        "https://www.pavilions.com/order-account/*",
+        "https://www.andronicos.com/order-account/*",
+        "https://www.carrsqc.com/order-account/*",
+        "https://www.haggen.com/order-account/*",
+        "https://www.kingsfoodmarkets.com/order-account/*",
+        "https://www.balduccis.com/order-account/*",
+        "https://www.shopunitedsupermarkets.com/order-account/*",
+        "https://www.shopmarketstreet.com/order-account/*",
+        "https://www.shopamigos.com/order-account/*",
+        "https://www.shopalbertsonsmarket.com/order-account/*"
+      ],
+      "js": [
+        "content/albertsons-receipt.js"
       ],
       "run_at": "document_idle"
     }
