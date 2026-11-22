@@ -100,3 +100,17 @@ td .off { color: var(--muted); font-style: italic; }
 .check { display: flex; gap: 8px; align-items: flex-start; margin: 12px 0; }
 .buttons { display: flex; gap: 10px; justify-content: flex-end; }
 main { padding-bottom: 40px; }
+
+/* Run box: symbols carry the meaning (✓ ▶ ○ ⚠), colour only helps. */
+.runbox { margin-top: 16px; border-width: 2px; }
+.runbox.ok { border-color: var(--accent); }
+.runbox.bad { border-color: var(--warn); }
+.runbox.busy { border-color: var(--fg); }
+.run-title { font-size: 18px; font-weight: 700; margin: 0 0 6px; }
+.run-steps { list-style: none; padding: 0; margin: 0 0 6px; }
+.run-steps li { padding: 2px 0; color: var(--muted); }
+.run-steps li .mark { display: inline-block; width: 1.6em; font-weight: 700; }
+.run-steps li.now { color: var(--fg); font-weight: 700; }
+.run-steps li.done { color: var(--fg); }
+.run-detail { margin: 4px 0 0; }
+.run-detail .todo-hint { display: block; font-weight: 700; margin-top: 4px; }

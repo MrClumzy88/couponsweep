@@ -12,7 +12,7 @@ import { buildTodos, day } from "./rebate-todos.js";
 const $ = (id) => document.getElementById(id);
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids.filter((k) => k != null)); return e; };
 const IBOTTA = STORES.find((s) => s.id === "ibotta");
-let state = { settings: {}, rebates: null, results: {}, live: null, rebateDone: {} };
+let state = { settings: {}, rebates: null, results: {}, live: null, rebateDone: {}, rebateStep: null };
 
 function ago(ts) {
   const m = Math.round((Date.now() - ts) / 60000);
@@ -181,13 +181,57 @@ $("find").addEventListener("click", () => {
   chrome.runtime.sendMessage(running ? { type: "stop", store: "ibotta" } : { type: "run", store: "ibotta" });
 });
 $("accept").addEventListener("click", () => saveSettings({ acknowledged: true }));
+// The run box: each step with ✓ (done), ▶ (now) or ○ (waiting) while it
+// runs; afterwards a plain "Done" or "Didn't finish" and what to do next.
+const STEPS = [
+  "Read your store receipts",
+  "Check Checkout 51 and coupons.com",
+  "Read the Ibotta offers for your stores",
+  "Add the Ibotta offers that match",
+];
+const NEXT = {
+  login: "Sign in to that site in another tab, then press Find my rebates again.",
+  blocked: "The site is blocking for now. Try again in an hour.",
+  error: "Press Find my rebates to try again. If it fails twice, close any Albertsons and Ibotta tabs first.",
+  stopped: "You stopped it. Press Find my rebates to start over.",
+};
+function renderRunBox(running) {
+  const r = state.results?.ibotta;
+  const box = $("runbox");
+  box.hidden = !running && !r;
+  if (box.hidden) return;
+  const steps = state.rebateStep?.ibottaOn === false ? STEPS.slice(0, 2) : STEPS;
+  if (running) {
+    const now = state.rebateStep?.n || 1;
+    box.className = "card runbox busy";
+    $("run-title").textContent = "Working… you can leave this page open or close it.";
+    $("run-steps").replaceChildren(...steps.map((s, i) => {
+      const k = i + 1 < now ? "done" : i + 1 === now ? "now" : "";
+      return el("li", { className: k }, el("span", { className: "mark", textContent: k === "done" ? "✓" : k === "now" ? "▶" : "○" }), s);
+    }));
+    $("run-steps").hidden = false;
+    $("run-detail").textContent = `Right now: ${running}`;
+    return;
+  }
+  const ok = r.status === "ok";
+  box.className = `card runbox ${ok ? "ok" : "bad"}`;
+  $("run-title").textContent = ok ? `✓ Done (${ago(r.at)})` : `⚠ Didn't finish (${ago(r.at)})`;
+  $("run-steps").hidden = true;
+  const detail = [el("span", { textContent: r.message || "" })];
+  if (ok) detail.push(el("span", { className: "todo-hint", textContent: "Your results are below." }));
+  else {
+    detail.push(el("span", { className: "todo-hint", textContent: NEXT[r.status] || NEXT.error }));
+    if (state.rebates?.at) detail.push(el("span", { className: "todo-hint", textContent: `The list below is from your last good run, ${ago(state.rebates.at)}.` }));
+  }
+  $("run-detail").replaceChildren(...detail);
+}
+
 function renderHeader() {
   const running = state.live && typeof state.live === "object" ? state.live.ibotta : null;
-  const r = state.results?.ibotta;
   $("notice").hidden = !!state.settings.acknowledged;
   $("find").disabled = !state.settings.acknowledged;
-  $("find").textContent = running ? "Stop" : "Find my rebates";
-  $("status").textContent = running || (r ? `${r.status === "ok" ? "✓" : "⚠"} ${r.message} · ${ago(r.at)}` : "Not run yet.");
+  $("find").textContent = running ? "■ Stop" : "Find my rebates";
+  renderRunBox(running);
   $("empty").hidden = !!state.rebates;
 }
 
@@ -200,8 +244,8 @@ function render() {
 }
 
 async function refresh() {
-  const d = await chrome.storage.local.get(["settings", "rebates", "results", "live", "rebateDone"]);
-  state = { settings: d.settings || {}, rebates: d.rebates || null, results: d.results || {}, live: d.live || null, rebateDone: d.rebateDone || {} };
+  const d = await chrome.storage.local.get(["settings", "rebates", "results", "live", "rebateDone", "rebateStep"]);
+  state = { settings: d.settings || {}, rebates: d.rebates || null, results: d.results || {}, live: d.live || null, rebateDone: d.rebateDone || {}, rebateStep: d.rebateStep || null };
   render();
 }
 chrome.storage.onChanged.addListener(refresh);

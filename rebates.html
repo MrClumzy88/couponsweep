@@ -14,11 +14,16 @@
     </div>
     <div class="run">
       <button id="find" class="primary">Find my rebates</button>
-      <p id="status" class="status"></p>
     </div>
   </header>
 
   <main>
+    <!-- What the last or current run did, in plain words (rebates-page.js). -->
+    <section id="runbox" class="card runbox" aria-live="polite" hidden>
+      <p id="run-title" class="run-title"></p>
+      <ol id="run-steps" class="run-steps"></ol>
+      <p id="run-detail" class="run-detail"></p>
+    </section>
     <div id="notice" class="card warn" hidden>
       <p><strong>Before you start.</strong> CouponSweep is unofficial and not
       affiliated with any store or app. Use it on your own accounts, at your own

@@ -375,6 +375,9 @@ async function runIbotta(store, auto, foreground, runState) {
   const fail = async (status, message) => { const r = { status, message }; await record(store.id, r); return r; };
   const { riskAccepted, checkedInOrder } = await getSettings();
   const ibottaOn = !!riskAccepted[store.id];
+  // Which step the rebates page shows as "now" (rebates-page.js STEPS).
+  const step = (n) => chrome.storage.local.set({ rebateStep: { n, ibottaOn, at: Date.now() } });
+  await step(1);
 
   // 1. Receipts, Checkout 51 offers, and coupons.com offers (fetched in parallel).
   const c51Task = fetchC51Offers().then((raw) => raw.flatMap(toMatcherOffers));
@@ -390,6 +393,7 @@ async function runIbotta(store, auto, foreground, runState) {
   const recent = receipts.filter((r) => Date.now() - Date.parse(r.at) <= PURCHASE_DAYS * 864e5);
 
   // 2. Checkout 51, Fetch and coupons.com.
+  await step(2);
   await setLive(store.id, "Checking Checkout 51 and coupons.com…");
   const myItems = usualItems(recent);
   const [c51Res, ccRes] = await Promise.allSettled([c51Task, ccTask]);
@@ -414,6 +418,7 @@ async function runIbotta(store, auto, foreground, runState) {
   if (!storeIds.length) return fail("error", "None of your stores are on Ibotta yet.");
 
   // 3. Read each store's offers.
+  await step(3);
   const { ibottaOffers = {} } = await chrome.storage.local.get("ibottaOffers");
   const rids = [...new Set(storeIds.map(ibottaRetailerId))];
   for (const rid of rids) {
@@ -441,6 +446,7 @@ async function runIbotta(store, auto, foreground, runState) {
   }));
 
   // 5. Add the exact matches that aren't on the list yet, one store page at a time.
+  await step(4);
   const addIds = new Map();
   const want = (rid, o) => { if (!o.activated) { if (!addIds.has(rid)) addIds.set(rid, new Set()); addIds.get(rid).add(o.id); } };
   for (const m of usual) if (m.level === "exact") want(m.retailerId, m.offer);
