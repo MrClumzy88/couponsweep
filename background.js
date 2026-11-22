@@ -463,7 +463,8 @@ async function runIbotta(store, auto, foreground, runState) {
   for (const [, ids] of addIds) sum.total += ids.size;
 
   await chrome.storage.local.set({ rebates: { ...base, usual, receipts: toScan, stacks: stacksFor(usual) } });
-  const exact = usual.filter((m) => m.level === "exact").length;
+  // The same offer comes back once per store (Albertsons, Tom Thumb…); count it once.
+  const exact = new Set(usual.filter((m) => m.level === "exact").map((m) => `${m.offer.name}|${m.offer.value}`)).size;
   const scans = toScan.filter((x) => x.hits.some((h) => h.level === "exact")).length;
   sum.message ??= `${exact} rebate${exact === 1 ? "" : "s"} for things you buy` +
     (sum.clipped ? ` (${sum.clipped} added)` : "") +

@@ -218,7 +218,18 @@ function renderRunBox(running) {
   $("run-title").textContent = ok ? `✓ Done (${ago(r.at)})` : `⚠ Didn't finish (${ago(r.at)})`;
   $("run-steps").hidden = true;
   const detail = [el("span", { textContent: r.message || "" })];
-  if (ok) detail.push(el("span", { className: "todo-hint", textContent: "Your results are below." }));
+  if (ok) {
+    // Name the matches here, so nobody has to find them in the table.
+    const stacks = state.rebates?.stacks || [];
+    detail.push(el("span", { className: "todo-hint", textContent: stacks.length ? `Matches on things you buy (${stacks.length}):` : "No exact matches on things you buy this time." }));
+    if (stacks.length) {
+      detail.push(el("ul", { className: "run-matches" }, ...stacks.map((s) => el("li", {},
+        `${title(s.item)}: `,
+        ...s.deals.flatMap((d, i) => [i ? " + " : null, el("a", { href: d.url, target: "_blank", rel: "noopener", textContent: `${d.value} (${d.source})` })]).filter(Boolean)))));
+    }
+    const open = buildTodos(state.rebates, state.rebateDone).filter((t) => !t.done).length;
+    detail.push(el("span", { className: "todo-hint", textContent: open ? `You have ${open} thing${open === 1 ? "" : "s"} to do, listed under To do.` : "Nothing for you to do right now." }));
+  }
   else {
     detail.push(el("span", { className: "todo-hint", textContent: NEXT[r.status] || NEXT.error }));
     if (state.rebates?.at) detail.push(el("span", { className: "todo-hint", textContent: `The list below is from your last good run, ${ago(state.rebates.at)}.` }));
