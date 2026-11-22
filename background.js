@@ -27,7 +27,8 @@ const RUN_TIMEOUT_MS = 60 * 60 * 1000; // Walmart's search pass can run long.
 const DAILY_ALARM = "daily-clip";
 const NOTIFICATION = "run-summary";
 const HISTORY_DAYS = 400;
-const pending = new Map(); // tabId -> resolve(result)
+const pending = new Map(); // tabId -> { storeId, resolve(result) }
+const activeBatches = new Set(); // active enqueue runStates
 let queue = Promise.resolve();
 
 async function getSettings() {
@@ -83,12 +84,27 @@ function record(storeId, result) {
   return clearLive(storeId);
 }
 
-function waitForLoad(tabId) {
+function waitForLoad(tabId, timeoutMs = 30000) {
   return new Promise((resolve) => {
-    const done = () => { chrome.tabs.onUpdated.removeListener(listener); resolve(); };
-    const listener = (id, info) => { if (id === tabId && info.status === "complete") done(); };
-    chrome.tabs.onUpdated.addListener(listener);
-    chrome.tabs.get(tabId).then((t) => { if (t.status === "complete") done(); }).catch(done);
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      chrome.tabs.onUpdated.removeListener(onUpdated);
+      chrome.tabs.onRemoved.removeListener(onRemoved);
+      resolve();
+    };
+    const onUpdated = (id, info, tab) => {
+      if (id === tabId && info.status === "complete" && tab?.url !== "about:blank" && !tab?.pendingUrl) done();
+    };
+    const onRemoved = (id) => { if (id === tabId) done(); };
+    const timer = setTimeout(done, timeoutMs);
+    chrome.tabs.onUpdated.addListener(onUpdated);
+    chrome.tabs.onRemoved.addListener(onRemoved);
+    chrome.tabs.get(tabId)
+      .then((t) => { if (t.status === "complete" && !t.pendingUrl && t.url !== "" && t.url !== "about:blank") done(); })
+      .catch(done);
   });
 }
 
@@ -113,7 +129,7 @@ async function startRunner(tabId, auto, opts) {
 // All of it stays in chrome.storage.local.
 
 const PURCHASE_DAYS = 120;
-const pendingPurchases = new Map(); // tabId -> resolve(data)
+const pendingPurchases = new Map(); // tabId -> { storeId, resolve(data) }
 const ALBERTSONS = STORES.filter((s) => s.adapter === "albertsons");
 const ibottaRetailerId = (storeId) => ibottaStoreUrl(storeId)?.match(/\/(\d+)$/)?.[1] || null;
 
@@ -129,7 +145,7 @@ async function syncPurchases(checkedInOrder) {
   await waitForLoad(tab.id);
   const data = await new Promise(async (resolve) => {
     const timer = setTimeout(() => resolve({ error: "error", message: "Reading receipts timed out." }), 10 * 60 * 1000);
-    pendingPurchases.set(tab.id, (d) => { clearTimeout(timer); resolve(d); });
+    pendingPurchases.set(tab.id, { storeId: "ibotta", resolve: (d) => { clearTimeout(timer); resolve(d); } });
     let ok = false;
     for (let i = 0; i < 20 && !ok; i++) {
       try { ok = (await chrome.tabs.sendMessage(tab.id, { type: "gbc-sync-purchases", known: Object.keys(purchases.receipts), days: PURCHASE_DAYS }))?.ready; } catch {}
@@ -138,7 +154,7 @@ async function syncPurchases(checkedInOrder) {
     if (!ok) { clearTimeout(timer); resolve({ error: "error", message: `${site.name}'s purchases page didn't load.` }); }
   });
   pendingPurchases.delete(tab.id);
-  if (!existing && !data.error) chrome.tabs.remove(tab.id).catch(() => {});
+  if (!existing && (!data.error || data.error === "stopped")) chrome.tabs.remove(tab.id).catch(() => {});
   if (data.error) return { ...data, site };
 
   const cutoff = Date.now() - (PURCHASE_DAYS + 30) * 864e5;
@@ -157,7 +173,8 @@ async function syncPurchases(checkedInOrder) {
 // captureVisibleTab only sees the tab that's showing, and Chrome allows about
 // two captures a second.
 async function captureReceipt(tabId) {
-  const tab = await chrome.tabs.get(tabId);
+  let tab = await chrome.tabs.get(tabId);
+  if (!tab.active) tab = await chrome.tabs.update(tabId, { active: true });
   const ask = (m) => chrome.tabs.sendMessage(tabId, m);
   let g = null;
   for (let i = 0; i < 20 && !(g && !g.error); i++) {
@@ -173,7 +190,8 @@ async function captureReceipt(tabId) {
       shots.push({ at, bitmap: await createImageBitmap(await (await fetch(url)).blob()) });
       await new Promise((r) => setTimeout(r, 600));
     }
-    const s = g.dpr;
+    const dpr = g.dpr || 1;
+    const s = Math.min(dpr, 2);
     const canvas = new OffscreenCanvas(Math.round(g.width * s), Math.round(g.height * s));
     const ctx = canvas.getContext("2d");
     ctx.fillStyle = "#fff";
@@ -184,7 +202,7 @@ async function captureReceipt(tabId) {
       const to = Math.min(g.top + g.height, at + g.vh);
       if (to <= from) continue;
       ctx.drawImage(bitmap,
-        Math.round(g.left * s), Math.round((from - at) * s), Math.round(g.width * s), Math.round((to - from) * s),
+        Math.round(g.left * dpr), Math.round((from - at) * dpr), Math.round(g.width * dpr), Math.round((to - from) * dpr),
         0, Math.round((from - g.top) * s), Math.round(g.width * s), Math.round((to - from) * s));
     }
     const bytes = new Uint8Array(await (await canvas.convertToBlob({ type: "image/png" })).arrayBuffer());
@@ -219,9 +237,9 @@ const slim = (o) => ({ id: o.id, name: o.name, value: o.value, amount: o.amount,
 // Checkout 51: this week's offers (read-only) against this week's receipts
 // and the things you usually buy. Offers tied to particular chains, and
 // "Buy 2" offers short of the count, are only "possible".
-async function checkoutFiftyOne(recent) {
+async function checkoutFiftyOne(recent, preloadedOffers = null, items = null) {
   const week = c51Week();
-  const offers = (await fetchC51Offers()).flatMap(toMatcherOffers);
+  const offers = preloadedOffers || (await fetchC51Offers()).flatMap(toMatcherOffers);
   const best = (list) => {
     const byId = new Map();
     for (const h of list) {
@@ -255,7 +273,7 @@ async function checkoutFiftyOne(recent) {
     const merged = best(hits).map((h) => ({ ...h, offer: slimC51(h.offer) }));
     if (merged.length) receipts.push({ receipt: { id: r.id, tx: r.tx, at: r.at, store: r.store, banner: r.banner, host: STORES.find((s) => s.id === r.banner)?.host, total: r.total }, deadline: week.end, hits: merged });
   }
-  const usual = best(matchUsual(usualItems(recent), offers).map((m) => limit(m))).map((m) => ({ ...m, offer: slimC51(m.offer) }));
+  const usual = best(matchUsual(items || usualItems(recent), offers).map((m) => limit(m))).map((m) => ({ ...m, offer: slimC51(m.offer) }));
   return { weekEnd: week.end, receipts, usual };
 }
 
@@ -282,16 +300,17 @@ async function couponsComOffers() {
 // also without a trailing check digit in case one side has it.
 const upcKeys = (u) => {
   const s = String(u || "").replace(/\D/g, "").replace(/^0+/, "");
-  return s ? [s, s.slice(0, -1)] : [];
+  return s.length > 1 ? [s, s.slice(0, -1)] : s ? [s] : [];
 };
 
 // Printable coupons for things you usually buy, matched by barcode only: a
 // coupon's own product list is the final word.
 function matchCouponsCom(offers, items) {
+  const itemKeys = items.map((it) => ({ it, keys: upcKeys(it.upc) })).filter((x) => x.keys.length);
   const out = [];
   for (const o of offers.filter((o) => !o.expiration || Date.parse(o.expiration) > Date.now())) {
-    const keys = new Set(o.upcs.flatMap((u) => { const s = String(u).replace(/^0+/, ""); return [s]; }));
-    const hit = items.filter((it) => upcKeys(it.upc).some((k) => keys.has(k)));
+    const keys = new Set((o.upcs || []).flatMap(upcKeys));
+    const hit = itemKeys.filter((x) => x.keys.some((k) => keys.has(k))).map((x) => x.it);
     if (hit.length) {
       out.push({
         level: "exact",
@@ -311,9 +330,15 @@ function buildStacks(items, sources) {
   for (const it of items) {
     const deals = [];
     for (const [source, list] of Object.entries(sources)) {
+      // One deal per app: the same Ibotta offer shows up under each store
+      // (Albertsons, Tom Thumb…), and an app pays once per item anyway.
+      let best = null;
       for (const m of list || []) {
-        if (m.level === "exact" && m.items?.includes(it.name)) deals.push({ source, name: m.offer.name, value: m.offer.value, amount: m.offer.amount || 0, url: m.offer.url });
+        if (m.level === "exact" && m.items?.includes(it.name) && (!best || (m.offer.amount || 0) > best.amount)) {
+          best = { source, name: m.offer.name, value: m.offer.value, amount: m.offer.amount || 0, url: m.offer.url };
+        }
       }
+      if (best) deals.push(best);
     }
     if (deals.length) stacks.push({ item: it.name, deals, total: Math.round(deals.reduce((n, d) => n + d.amount, 0) * 100) / 100 });
   }
@@ -333,26 +358,37 @@ const fetchList = (recent) => recent
 // read each store's Ibotta offers, then add only the offers that exactly
 // match what you buy (before you shop: works with a linked store card) or
 // bought in the last 7 days (scan that receipt in the Ibotta app).
-async function runIbotta(store, auto, foreground) {
+async function runIbotta(store, auto, foreground, runState) {
+  const isStopped = () => runState?.cancelled || runState?.stoppedStores?.has(store.id);
   const fail = async (status, message) => { const r = { status, message }; await record(store.id, r); return r; };
   const { riskAccepted, checkedInOrder } = await getSettings();
   const ibottaOn = !!riskAccepted[store.id];
 
-  // 1. Receipts.
+  // 1. Receipts, Checkout 51 offers, and coupons.com offers (fetched in parallel).
+  const c51Task = fetchC51Offers().then((raw) => raw.flatMap(toMatcherOffers));
+  const ccTask = couponsComOffers();
   const sync = await syncPurchases(checkedInOrder);
-  if (sync.error) return fail(sync.error, `${sync.site.name}: ${sync.message}`);
+  if (sync.error || isStopped()) {
+    c51Task.catch(() => {});
+    ccTask.catch(() => {});
+    if (sync.error) return fail(sync.error, sync.error === "stopped" ? sync.message : `${sync.site.name}: ${sync.message}`);
+    return fail("stopped", "Stopped.");
+  }
   const receipts = sync.receipts;
   const recent = receipts.filter((r) => Date.now() - Date.parse(r.at) <= PURCHASE_DAYS * 864e5);
 
-  // 2. Checkout 51 and Fetch.
-  await setLive(store.id, "Checking Checkout 51…");
-  let c51;
-  try { c51 = await checkoutFiftyOne(recent); } catch (e) { c51 = { error: `Couldn't read Checkout 51's offers: ${e?.message || e}` }; }
-  const fetchReceipts = fetchList(recent);
-  await setLive(store.id, "Checking coupons.com…");
+  // 2. Checkout 51, Fetch and coupons.com.
+  await setLive(store.id, "Checking Checkout 51 and coupons.com…");
   const myItems = usualItems(recent);
-  let couponsCom;
-  try { couponsCom = { usual: matchCouponsCom(await couponsComOffers(), myItems) }; } catch (e) { couponsCom = { error: `Couldn't read coupons.com: ${e?.message || e}`, usual: [] }; }
+  const [c51Res, ccRes] = await Promise.allSettled([c51Task, ccTask]);
+  if (isStopped()) return fail("stopped", "Stopped.");
+  let c51;
+  if (c51Res.status === "fulfilled") c51 = await checkoutFiftyOne(recent, c51Res.value, myItems);
+  else c51 = { error: `Couldn't read Checkout 51's offers: ${c51Res.reason?.message || c51Res.reason}` };
+  const fetchReceipts = fetchList(recent);
+  const couponsCom = ccRes.status === "fulfilled"
+    ? { usual: matchCouponsCom(ccRes.value, myItems) }
+    : { error: `Couldn't read coupons.com: ${ccRes.reason?.message || ccRes.reason}`, usual: [] };
   const base = { at: Date.now(), receiptsRead: receipts.length, c51, fetch: fetchReceipts, couponsCom };
   const stacksFor = (ibottaUsual) => buildStacks(myItems, { "coupons.com": couponsCom.usual, "Checkout 51": c51.usual, Ibotta: ibottaUsual });
   if (!ibottaOn) {
@@ -369,8 +405,9 @@ async function runIbotta(store, auto, foreground) {
   const { ibottaOffers = {} } = await chrome.storage.local.get("ibottaOffers");
   const rids = [...new Set(storeIds.map(ibottaRetailerId))];
   for (const rid of rids) {
+    if (isStopped()) return fail("stopped", "Stopped.");
     const id = storeIds.find((s) => ibottaRetailerId(s) === rid);
-    const r = await runStore({ ...store, url: ibottaStoreUrl(id) }, auto, foreground, false, { mode: "scan" });
+    const r = await runStore({ ...store, url: ibottaStoreUrl(id) }, auto, foreground, false, { mode: "scan" }, runState);
     if (r.status !== "ok") return fail(r.status, r.message);
   }
   Object.assign(ibottaOffers, (await chrome.storage.local.get("ibottaOffers")).ibottaOffers || {});
@@ -398,8 +435,9 @@ async function runIbotta(store, auto, foreground) {
   for (const x of toScan) for (const h of x.hits) if (h.level === "exact") want(x.retailerId, h.offer);
   const sum = { status: "ok", total: 0, already: 0, clipped: 0, failed: 0, savings: 0 };
   for (const [rid, ids] of addIds) {
+    if (isStopped()) { sum.status = "stopped"; sum.message = "Stopped."; break; }
     const id = storeIds.find((s) => ibottaRetailerId(s) === rid);
-    const r = await runStore({ ...store, url: ibottaStoreUrl(id) }, auto, foreground, false, { mode: "add", ids: [...ids] });
+    const r = await runStore({ ...store, url: ibottaStoreUrl(id) }, auto, foreground, false, { mode: "add", ids: [...ids] }, runState);
     sum.clipped += r.clipped || 0;
     sum.failed += r.failed || 0;
     if (r.status !== "ok") { sum.status = r.status; sum.message = r.message; break; }
@@ -418,8 +456,13 @@ async function runIbotta(store, auto, foreground) {
   return sum;
 }
 
-async function runStore(store, auto, foreground, save = true, opts = {}) {
-  if (store.id === "ibotta" && save) return runIbotta(store, auto, foreground);
+async function runStore(store, auto, foreground, save = true, opts = {}, runState = null) {
+  if (store.id === "ibotta" && save) return runIbotta(store, auto, foreground, runState);
+  if (runState?.cancelled || runState?.stoppedStores?.has(store.id)) {
+    const result = { status: "stopped", message: "Stopped." };
+    if (save) await record(store.id, result);
+    return result;
+  }
   // Reuse a tab that's already on the coupon page; never navigate away from
   // whatever else the user has open on that site.
   // Single-page sites keep every screen on one path, so compare the #route too.
@@ -434,6 +477,12 @@ async function runStore(store, auto, foreground, save = true, opts = {}) {
   const tab = existing || await chrome.tabs.create({ url: store.url, active: foreground });
   await setLive(store.id, "Opening page…");
   await waitForLoad(tab.id);
+  if (runState?.cancelled || runState?.stoppedStores?.has(store.id)) {
+    const result = { status: "stopped", message: "Stopped." };
+    if (!existing) chrome.tabs.remove(tab.id).catch(() => {});
+    if (save) await record(store.id, result);
+    return result;
+  }
   // Ibotta sends signed-out visitors (and new devices) to its sign-in site,
   // where the clipper doesn't load.
   const landed = await chrome.tabs.get(tab.id).catch(() => null);
@@ -445,7 +494,7 @@ async function runStore(store, auto, foreground, save = true, opts = {}) {
 
   const result = await new Promise(async (resolve) => {
     const timer = setTimeout(() => resolve({ status: "error", message: "Timed out." }), RUN_TIMEOUT_MS);
-    pending.set(tab.id, (r) => { clearTimeout(timer); resolve(r); });
+    pending.set(tab.id, { storeId: store.id, resolve: (r) => { clearTimeout(timer); resolve(r); } });
     if (!(await startRunner(tab.id, auto, opts))) {
       pending.delete(tab.id);
       clearTimeout(timer);
@@ -475,23 +524,42 @@ function lanesFor(storeIds) {
   return lanes;
 }
 
+// Chrome stops an idle background worker after about 30 seconds, and waiting
+// on a page (a timer) doesn't count as activity. A stopped worker loses the
+// run but leaves `live` saying "Reading…" forever, so ping an extension API
+// while anything runs.
+let keepAwake = null;
+function startKeepAwake() {
+  keepAwake ??= setInterval(() => chrome.runtime.getPlatformInfo(), 20000);
+}
+function stopKeepAwake() {
+  if (activeBatches.size) return;
+  clearInterval(keepAwake);
+  keepAwake = null;
+}
+
 function enqueue(storeIds, auto) {
+  const runState = { cancelled: false, stoppedStores: new Set() };
+  activeBatches.add(runState);
+  startKeepAwake();
   queue = queue.then(async () => {
     const lanes = lanesFor(storeIds);
     const single = [...lanes.values()].flat().length === 1;
     const outcomes = [];
     await Promise.all([...lanes].map(async ([key, stores]) => {
       for (const store of stores) {
+        if (runState.cancelled || runState.stoppedStores.has(store.id)) break;
         // A manual run brings the page-driving stores to the front, as before;
         // API stores don't need to be seen, so they open behind it.
         const foreground = !auto && (single || key === "page");
-        outcomes.push({ store, result: await runStore(store, auto, foreground) });
+        outcomes.push({ store, result: await runStore(store, auto, foreground, true, {}, runState) });
       }
     }));
     // Report in the popup's order, not the order the lanes finished in.
     outcomes.sort((a, b) => storeIds.indexOf(a.store.id) - storeIds.indexOf(b.store.id));
     await finish(outcomes, auto);
-  }).catch((e) => console.error("[CouponSweep]", e));
+  }).catch((e) => console.error("[CouponSweep]", e))
+    .finally(() => { activeBatches.delete(runState); stopKeepAwake(); });
   return queue;
 }
 
@@ -583,24 +651,82 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     // Ibotta's offer list for one store, from content/ibotta.js.
     update("ibottaOffers", (all = {}) => ({ ...all, [msg.data.retailerId]: { at: Date.now(), offers: msg.data.offers || [] } }));
   } else if (msg.type === "gbc:purchases" && sender.tab) {
-    pendingPurchases.get(sender.tab.id)?.(msg.data || {});
+    pendingPurchases.get(sender.tab.id)?.resolve(msg.data || {});
   } else if (msg.type === "gbc:purchases-progress" && sender.tab) {
     setLive("ibotta", `Reading receipts… ${msg.data.done} of ${msg.data.of}`);
   } else if (msg.type === "gbc:progress" && sender.tab) {
     setLive(msg.data.store, msg.data.text);
   } else if (msg.type === "gbc:done" && sender.tab) {
-    const resolve = pending.get(sender.tab.id);
-    if (resolve) resolve(msg.data);
+    const entry = pending.get(sender.tab.id);
+    if (entry) entry.resolve(msg.data);
     else record(msg.data.store, msg.data); // Started from the on-page button rather than the popup.
   } else if (msg.type === "run") {
     // One store, a list of stores (the popup's "try again"), or every checked store.
     const ids = Array.isArray(msg.stores) ? msg.stores.filter((id) => typeof id === "string") : msg.store ? [msg.store] : null;
     getSettings().then(({ checkedInOrder }) => enqueue(ids || checkedInOrder, false));
     sendResponse({ ok: true });
+  } else if (msg.type === "stop") {
+    stopRuns(msg.store || null);
+    sendResponse({ ok: true });
   } else if (msg.type === "settings-changed") {
     syncAlarm();
   }
 });
+
+// A fresh worker has no runs in memory, so anything still marked as running
+// was cut off (Chrome stopped the worker, or the extension was reloaded).
+async function clearInterrupted() {
+  const { live } = await chrome.storage.local.get("live");
+  if (!isLiveMap(live) || activeBatches.size) return;
+  for (const id of Object.keys(live)) await record(id, { status: "error", message: "Interrupted. Press run again." });
+  await chrome.storage.local.set({ live: null });
+}
+clearInterrupted();
+
+function stopRuns(storeId = null) {
+  if (!activeBatches.size) { clearInterrupted(); return; }
+  for (const r of activeBatches) {
+    if (storeId) r.stoppedStores.add(storeId);
+    else r.cancelled = true;
+  }
+  for (const [tabId, entry] of pending) {
+    if (storeId && entry.storeId !== storeId) continue;
+    chrome.tabs.sendMessage(tabId, { type: "gbc-stop" }).catch(() => {});
+    setTimeout(() => {
+      if (pending.get(tabId) === entry) {
+        pending.delete(tabId);
+        entry.resolve({ status: "stopped", message: "Stopped." });
+      }
+    }, 1500);
+  }
+  for (const [tabId, entry] of pendingPurchases) {
+    if (storeId && entry.storeId !== storeId) continue;
+    pendingPurchases.delete(tabId);
+    entry.resolve({ error: "stopped", message: "Stopped." });
+  }
+}
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  const entry = pending.get(tabId);
+  if (entry) {
+    pending.delete(tabId);
+    entry.resolve({ status: "stopped", message: "Stopped (tab closed)." });
+  }
+  const purchase = pendingPurchases.get(tabId);
+  if (purchase) {
+    pendingPurchases.delete(tabId);
+    purchase.resolve({ error: "stopped", message: "Stopped (tab closed)." });
+  }
+});
+
+async function clearStaleTemp() {
+  const { c51Prefill, ccPrefill } = await chrome.storage.local.get(["c51Prefill", "ccPrefill"]);
+  const stale = (p) => p && (!p.at || Date.now() - p.at > 30 * 60 * 1000);
+  const drop = [];
+  if (stale(c51Prefill)) drop.push("c51Prefill");
+  if (stale(ccPrefill)) drop.push("ccPrefill");
+  if (drop.length) await chrome.storage.local.remove(drop);
+}
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name !== DAILY_ALARM) return;
@@ -612,9 +738,11 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.set({ live: null });
+  clearStaleTemp();
   syncAlarm();
 });
 chrome.runtime.onStartup.addListener(() => {
   chrome.storage.local.set({ live: null });
+  clearStaleTemp();
   syncAlarm();
 });

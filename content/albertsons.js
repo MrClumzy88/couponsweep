@@ -68,7 +68,7 @@
     async run(ctx) {
       // The page fills in its globals a moment after load.
       let s = session();
-      for (let i = 0; i < 10 && !(s.token && s.storeId); i++) { await ctx.sleep(1000); s = session(); }
+      for (let i = 0; i < 10 && !(s.token && s.storeId); i++) { ctx.checkStop(); await ctx.sleep(1000); s = session(); }
       if (!s.token) throw ctx.fail("login", "Sign in to the store's website first, then run again.");
       if (!s.storeId) throw ctx.fail("error", "Couldn't tell which store you shop at. Pick a store on the site, then run again.");
 
@@ -83,7 +83,9 @@
       // rewards come from a different feed, so nothing here spends points.
       const all = (Array.isArray(raw) ? raw : Object.values(raw || {})).filter((o) => o?.offerId && !o.deleted);
 
-      const todo = all.filter((o) => o.status !== "C");
+      const todo = all
+        .filter((o) => o.status !== "C")
+        .sort((a, b) => ctx.dollarsOff(b) - ctx.dollarsOff(a));
       ctx.found(all.length, all.length - todo.length);
 
       for (const o of todo) {

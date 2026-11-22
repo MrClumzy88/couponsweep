@@ -12,14 +12,6 @@
   const sendButton = (c) => [...c.querySelectorAll("button.sc-send-to-card-action")].find((b) => /send to card/i.test(b.innerText || ""));
   const onCard = (c) => /\bOn card\b/i.test(c.innerText);
 
-  async function waitFor(ctx, test, ms) {
-    for (let t = 0; t < ms; t += 300) {
-      if (test()) return true;
-      await ctx.sleep(300);
-    }
-    return test();
-  }
-
   window.__gbc.register({
     id: "cvs",
     name: "CVS ExtraCare",
@@ -27,13 +19,14 @@
 
     async run(ctx) {
       if (/account-login/.test(location.pathname)) throw ctx.fail("login", "Sign in to cvs.com first, then run again.");
-      if (!(await waitFor(ctx, () => coupons().length > 0, 10000))) {
+      if (!(await ctx.waitFor(() => coupons().length > 0, 10000))) {
         throw ctx.fail("login", "No ExtraCare coupons showed up. Sign in to cvs.com, open the ExtraCare page, then run again.");
       }
 
       // Scroll until a few rounds in a row bring in nothing new.
       let last = -1;
       for (let stable = 0, i = 0; stable < 3 && i < 200; i++) {
+        ctx.checkStop();
         window.scrollTo(0, document.body.scrollHeight);
         await ctx.sleep(1200);
         const n = coupons().length;
@@ -60,7 +53,7 @@
           if (!button) return onCard(c);
           button.scrollIntoView({ block: "center" });
           button.click();
-          if (!(await waitFor(ctx, () => onCard(c) || refusedByCvs(c), 6000))) return false;
+          if (!(await ctx.waitFor(() => onCard(c) || refusedByCvs(c), 6000))) return false;
           await ctx.sleep(800);
           return onCard(c);
         }, [700, 1400], value);

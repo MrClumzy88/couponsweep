@@ -8,7 +8,9 @@ const empty = document.getElementById("empty");
 const tpl = document.getElementById("store-row");
 const live = document.getElementById("live");
 const runAll = document.getElementById("run-all");
+const stopBtn = document.getElementById("stop");
 const retry = document.getElementById("retry");
+const storeFilter = document.getElementById("store-filter");
 // Checked stores whose last run stopped on something the user can fix.
 const NEEDS_USER = new Set(["login", "blocked", "error"]);
 let retryIds = [];
@@ -107,6 +109,7 @@ function render({ results = {}, live: running, history, rebates, rebateDone }) {
   dailyHour.disabled = !settings.acknowledged || !settings.daily;
   notice.hidden = !!settings.acknowledged;
   runAll.disabled = busy || !settings.acknowledged || !STORES.some((s) => settings.enabled?.[s.id] && !s.comingSoon && !s.rebate);
+  stopBtn.hidden = !busy;
   const stopped = ordered.filter((s) => settings.enabled?.[s.id] && !s.comingSoon && !s.rebate && NEEDS_USER.has(results[s.id]?.status));
   retryIds = stopped.map((s) => s.id);
   retry.hidden = busy || !settings.acknowledged || !stopped.length;
@@ -117,8 +120,18 @@ function render({ results = {}, live: running, history, rebates, rebateDone }) {
   live.hidden = !busy;
   const names = Object.keys(now).map((id) => STORES.find((s) => s.id === id)?.name || id);
   if (busy) live.textContent = `Working on ${names.join(", ")}…`;
+  applyStoreFilter();
   renderMonth(history);
   renderRebatesCard(rebates, rebateDone, now.ibotta);
+}
+
+function applyStoreFilter() {
+  const query = (storeFilter.value || "").trim().toLowerCase();
+  for (const s of STORES.filter((x) => !x.rebate)) {
+    const row = rows[s.id];
+    if (!row) continue;
+    row.hidden = !isMine(s) && !!query && !s.name.toLowerCase().includes(query) && !s.host.toLowerCase().includes(query);
+  }
 }
 
 // ── Rebates card: a one-line summary and the way into rebates.html ───────
@@ -234,7 +247,9 @@ for (const s of STORES.filter((s) => !s.rebate)) {
   rows[s.id] = row;
 }
 runAll.addEventListener("click", () => chrome.runtime.sendMessage({ type: "run" }));
+stopBtn.addEventListener("click", () => chrome.runtime.sendMessage({ type: "stop" }));
 retry.addEventListener("click", () => chrome.runtime.sendMessage({ type: "run", stores: retryIds }));
+storeFilter.addEventListener("input", applyStoreFilter);
 daily.addEventListener("change", () => saveSettings({ daily: daily.checked }));
 dailyHour.addEventListener("change", () => saveSettings({ dailyHour: dailyHour.value === "" ? null : Number(dailyHour.value) }));
 notify.addEventListener("change", () => saveSettings({ notify: notify.checked }));

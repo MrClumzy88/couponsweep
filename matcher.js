@@ -27,6 +27,10 @@ const ABBREV = {
   bkd: "baked", unswt: "unsweetened", swt: "sweet", lt: "light", lite: "light", ff: "fat free",
   rf: "reduced fat", lf: "low fat", ls: "low sodium", gf: "gluten free", dz: "dozen",
   mr: "mister", tp: "toilet paper", pt: "paper towel", det: "detergent", dtrgnt: "detergent",
+  orig: "original", nat: "natural", inst: "instant", almd: "almond", alm: "almond", cinn: "cinnamon",
+  carml: "caramel", hny: "honey", lem: "lemon", swss: "swiss", amer: "american", ital: "italian",
+  mex: "mexican", rst: "roast", rstd: "roasted", slcd: "sliced", slc: "slice", dcd: "dice",
+  crshd: "crushed", strwbry: "strawberry",
   dannon: "dannon", oikos: "oikos",
 };
 
@@ -58,9 +62,21 @@ export function words(text) {
     .filter((w) => w && !/^[\d.%]+$/.test(w) && !NOISE.has(w));
 }
 
-// One word matches another when either starts with the other (at least 3
-// letters), so receipt abbreviations and plurals still line up.
-const wordMatch = (a, b) => a === b || (Math.min(a.length, b.length) >= 3 && (a.startsWith(b) || b.startsWith(a)));
+// One word matches another when one is a receipt truncation of the other (at
+// least 4 letters), excluding full words that are prefixes of unrelated foods
+// ("grape" vs "grapefruit", "butter" vs "buttermilk", "pro" vs "protein").
+const DISTINCT_WORDS = new Set([
+  "grape", "butter", "corn", "pea", "pro", "black", "blue", "pine", "apple", "milk", "cream",
+  "sweet", "short", "sour", "bread", "oat", "egg", "ham", "hot", "pork", "sun", "coco", "car",
+  "man", "bar", "ice", "tea", "nut", "red", "green", "white", "gold", "sea", "pop", "pan",
+  "pot", "fig", "jam", "pie", "bun", "roll", "sub", "dip", "soy", "rye", "raw", "dry", "lime",
+]);
+const wordMatch = (a, b) => {
+  if (a === b) return true;
+  const short = a.length <= b.length ? a : b;
+  const long = a.length <= b.length ? b : a;
+  return short.length >= 4 && !DISTINCT_WORDS.has(short) && long.startsWith(short);
+};
 const has = (pool, w) => pool.some((p) => wordMatch(p, w));
 
 // Sizes: "32oz", "1.5 OZ", "8CT", "12 ct", "64 fl oz", "2 lb".
@@ -114,33 +130,58 @@ function sizeRule(offer) {
   return (x) => all.some((y) => sameSize(x, y));
 }
 
+const itemCache = new WeakMap();
+function prepItem(item) {
+  if (item && typeof item === "object" && itemCache.has(item)) return itemCache.get(item);
+  const name = String(item?.name || "");
+  const data = {
+    name,
+    itemWords: words(name),
+    itemSizes: sizes(name),
+    isStoreBrand: STORE_BRANDS.test(name),
+  };
+  if (item && typeof item === "object") itemCache.set(item, data);
+  return data;
+}
+
+const offerCache = new WeakMap();
+function prepOffer(offer) {
+  if (offer && typeof offer === "object" && offerCache.has(offer)) return offerCache.get(offer);
+  let core = words(offer?.name);
+  if (offer?.anyBrand) core = core.filter((w) => !["any", "brand"].includes(w));
+  const data = {
+    core,
+    list: variants(offer),
+    rule: sizeRule(offer),
+  };
+  if (offer && typeof offer === "object") offerCache.set(offer, data);
+  return data;
+}
+
 // Does `item` (a receipt line { name }) match `offer`? Returns null, or
 // { level: "exact" | "possible", why }.
 export function matchItem(item, offer) {
-  const name = String(item.name || "");
+  const { name, itemWords, itemSizes, isStoreBrand } = prepItem(item);
   if (!name || /item name not found/i.test(name)) return null;
   if (offer.anyItem) return null; // "Any receipt" style offers are handled per receipt.
-  const itemWords = words(name);
-  const itemSizes = sizes(name);
 
   // The product the offer is about. "Any Brand Turkey Roast" drops the brand.
-  let core = words(offer.name);
-  if (offer.anyBrand) core = core.filter((w) => !["any", "brand"].includes(w));
+  const { core, list, rule } = prepOffer(offer);
   if (!core.length) return null;
-  if (STORE_BRANDS.test(name) && !offer.anyBrand) return null;
+  if (isStoreBrand && !offer.anyBrand) return null;
 
   // The brand (first word) must be there, and most of the rest of the name.
   const brand = core[0];
   if (!offer.anyBrand && !has(itemWords, brand)) return null;
-  const list = variants(offer);
-  const rule = sizeRule(offer);
   const itemSize = itemSizes[0] || null;
 
   // Brand plus a listed product ("McCormick" + "Garlic Powder, 3.12 oz") is
   // enough when the only words missing are category words like "Spices".
   const sizeFits = (v) => (v.size ? itemSize && sameSize(itemSize, v.size) : !rule || (itemSize && rule(itemSize)));
-  const lineOk = core.slice(1).every((w) => has(itemWords, w) || CATEGORY.has(w));
-  if (!offer.anyBrand && lineOk) {
+  const rest = core.slice(offer.anyBrand ? 0 : 1);
+  const lineOk = rest.every((w) => has(itemWords, w) || CATEGORY.has(w));
+  if (!lineOk) return null;
+  if (!offer.anyBrand) {
     for (const v of list) {
       if (v.words.length && v.words.every((w) => has(itemWords, w)) && sizeFits(v)) {
         return { level: "exact", why: `Listed: ${v.text}${!v.size && rule ? ` (${String(offer.terms).match(/[\d.]+\s*(?:fl\.?\s*)?oz[^.,\n]*/i)?.[0] || "size fits"})` : ""}` };
@@ -150,14 +191,13 @@ export function matchItem(item, offer) {
 
   // Otherwise most of the product name must be there. Receipts often drop
   // the category ("Greek Yogurt"), so half is enough.
-  const rest = core.slice(offer.anyBrand ? 0 : 1);
   const hits = rest.filter((w) => has(itemWords, w)).length;
   if (rest.length && hits < Math.max(1, Math.ceil(rest.length / 2))) return null;
 
   if (list.length) {
     for (const v of list) {
       const flavourOk = v.words.every((w) => has(itemWords, w) || has(core, w));
-      if (flavourOk && sizeFits(v) && lineOk) return { level: "exact", why: `Listed: ${v.text}` };
+      if (flavourOk && sizeFits(v)) return { level: "exact", why: `Listed: ${v.text}` };
     }
     return { level: "possible", why: `Not sure your ${itemSize ? `${itemSize.n} ${itemSize.unit} ` : ""}item is on the list: ${list.map((v) => v.text).join("; ")}` };
   }

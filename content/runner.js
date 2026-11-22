@@ -59,6 +59,12 @@
   let running = false;
   let stopRequested = false;
 
+  function requestStop() {
+    stopRequested = true;
+    for (const w of [...wakers.values()]) w();
+    wakers.clear();
+  }
+
   function emit(type, data) {
     window.dispatchEvent(new CustomEvent(type, { detail: JSON.stringify(data) }));
   }
@@ -91,7 +97,7 @@
     btn.style.cssText =
       "background:#475569;color:#fff;border:0;border-radius:6px;padding:5px 12px;cursor:pointer;font:inherit";
     btn.onclick = () => {
-      if (running) stopRequested = true;
+      if (running) requestStop();
       else { panel.remove(); panel = null; }
     };
     const note = document.createElement("div");
@@ -201,6 +207,15 @@
       status: (text) => report(text),
       // For long stretches with nothing to clip (paging, moving between lists).
       checkStop() { if (stopRequested) throw new StopRun("stopped", "Stopped."); },
+      async waitFor(test, ms) {
+        for (let t = 0; t < ms; t += 300) {
+          if (stopRequested) throw new StopRun("stopped", "Stopped.");
+          if (test()) return true;
+          await sleep(300);
+        }
+        if (stopRequested) throw new StopRun("stopped", "Stopped.");
+        return !!test();
+      },
     };
 
     try {
@@ -245,5 +260,8 @@
     let opts = {};
     try { opts = JSON.parse(e.detail); } catch {}
     run(opts);
+  });
+  window.addEventListener("gbc:stop", () => {
+    if (running) requestStop();
   });
 })();

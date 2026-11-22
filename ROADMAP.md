@@ -97,6 +97,30 @@ The basic clipping stays free. Ideas for an optional upgrade:
   its low price (sales repeat about every 6–8 weeks) and say how many to buy
   to last until the next sale. Needs price history kept on the user's computer.
 
+## High-ROI Money-Saving Avenues (Antigravity Suggestions)
+
+Ideas added during the 2026-11-15 review to maximize actual dollars saved within CouponSweep's local-only, no-password architecture:
+
+- [ ] **4-way "true stacking" with store digital coupons & conflict warnings**:
+  `albertsons.js`, `kroger.js`, `heb.js`, and `target.js` already download every store coupon (and Albertsons fetches `transformOfferbyUpc=y`). Save those store offers locally so `buildStacks` in `background.js` shows **Store Digital + Printable (`coupons.com`) + Ibotta + Checkout 51** on one row, flags "free / moneymaker" combos, and warns on non-stackable pairs (e.g., Walmart Cash and Ibotta share the same offer pool and do not stack).
+- [ ] **Fuel-point multipliers & basket-threshold boosters ("Spend $X, Get $Y")**:
+  On Kroger (`kroger.js`), cards cap around 250 coupons and sort by `Number(b.savings) || 0`. **2x/4x Fuel Points Friday** and **4x Gift Card Fuel Points** report `savings: 0` and drop to the bottom, getting skipped when the card is full despite saving $14–$35 per fill-up. Prioritize fuel-point and basket-threshold coupons ahead of low-value item offers, and add **Target Circle Bonuses** (e.g., *"Make 2 $75 trips, earn $15 Target Circle Rewards"*) which sit in a separate feed from item deals.
+- [ ] **Expiring rewards & "use-it-or-lose-it" alerts**:
+  While adapters already visit signed-in pages, capture reward balances and expiration dates for **CVS ExtraBucks**, **Albertsons "for U" expiring points**, **Walgreens Cash**, and soon-to-expire high-value clipped coupons, then surface countdown warnings in the popup (e.g., *"⚠ $5.00 CVS ExtraBucks expires in 2 days"*).
+- [ ] **Personal price book, stock-up lows, shrinkflation & price-adjustment alerts**:
+  Use the itemized UPC and net-price history already captured by `albertsons-purchases.js` (`reducedPriceTotal`) to build a local price book that flags:
+  - **Historical low / stock-up price:** when a staple hits its 4-month net low after coupons and rebates.
+  - **Quiet price hikes & shrinkflation:** when unit price or package size changes across recent receipts.
+  - **Post-purchase price-adjustment windows:** reminders when recently bought items drop in price inside Target's 14-day or Costco's 30-day adjustment window.
+- [ ] **Expand receipt sync to Kroger, Walmart, Target & H-E-B**:
+  Currently `syncPurchases` only reads Albertsons-family `/order-account/orders`. Add receipt readers for Kroger (`/mypurchases`), Walmart (`/orders`, including card-linked in-store trips), Target, and H-E-B so non-Albertsons shoppers get full rebate matching, Stacks, and price-book tracking.
+- [ ] **Multi-card Chase Offers loop & "best card for this store" reminders**:
+  Have `chase.js` cycle through the card-selector dropdown under one login so the same 10%–15% grocery/pharmacy/dining offer is clipped across every household card, and surface a popup reminder showing which checked store currently has an active card offer to swipe at checkout.
+- [ ] **Additional stackable rebate feeds & Ibotta bonus completion tracking**:
+  - **Prodege Magic Receipts** (Swagbucks / MyPoints / InboxDollars) and **Merryfield** (natural/organic brands with direct Kroger/Albertsons/Target loyalty linking), which stack on the exact same receipt as Ibotta and Checkout 51.
+  - **Aisle** (`discover.gotoaisle.com`) SMS/Venmo/PayPal offers (often BOGO or 100% free at Target, Walmart, H-E-B, and Albertsons).
+  - **Ibotta bonus alerts**: highlight when a matched rebate brings you 1–2 offers away from completing an active Ibotta bonus (*"Weekend Warrior"* / *"Midweek Money Maker"*).
+
 ## Competitors (as of 2026-11-01)
 
 - OttoClipper: about 120 stores and card offers, Chrome, "free to start"; ranks with per-store pages.

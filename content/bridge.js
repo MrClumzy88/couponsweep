@@ -12,6 +12,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     sendResponse({ ready: true });
     return;
   }
+  if (msg?.type === "gbc-stop") {
+    window.dispatchEvent(new CustomEvent("gbc:stop"));
+    sendResponse({ ok: true });
+    return;
+  }
   if (msg?.type !== "gbc-run") return;
   const ready = document.documentElement.dataset.gbcReady === "1";
   if (ready) {

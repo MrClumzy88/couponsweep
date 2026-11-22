@@ -27,7 +27,7 @@ jobs:
       - name: Build ZIP
         run: |
           mkdir -p dist/couponsweep
-          cp -r manifest.json background.js stores.js popup.html popup.css popup.js content icons README.md PRIVACY.md LICENSE dist/couponsweep/
+          cp -r manifest.json background.js stores.js popup.html popup.css popup.js rebates.js matcher.js checkout51.js rebate-todos.js rebates.html rebates.css rebates-page.js content icons README.md PRIVACY.md LICENSE dist/couponsweep/
           (cd dist && zip -r "couponsweep-$GITHUB_REF_NAME.zip" couponsweep)
           # The Chrome Web Store wants manifest.json at the top of the ZIP.
           (cd dist/couponsweep && zip -r "../couponsweep-$GITHUB_REF_NAME-webstore.zip" .)

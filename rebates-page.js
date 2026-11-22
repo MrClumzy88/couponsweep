@@ -176,14 +176,17 @@ $("risk-accept").addEventListener("click", () => {
 });
 
 // ── Header ───────────────────────────────────────────────────────────────
-$("find").addEventListener("click", () => chrome.runtime.sendMessage({ type: "run", store: "ibotta" }));
+$("find").addEventListener("click", () => {
+  const running = state.live && typeof state.live === "object" ? state.live.ibotta : null;
+  chrome.runtime.sendMessage(running ? { type: "stop", store: "ibotta" } : { type: "run", store: "ibotta" });
+});
 $("accept").addEventListener("click", () => saveSettings({ acknowledged: true }));
 function renderHeader() {
   const running = state.live && typeof state.live === "object" ? state.live.ibotta : null;
   const r = state.results?.ibotta;
   $("notice").hidden = !!state.settings.acknowledged;
-  $("find").disabled = !!running || !state.settings.acknowledged;
-  $("find").textContent = running ? "Working…" : "Find my rebates";
+  $("find").disabled = !state.settings.acknowledged;
+  $("find").textContent = running ? "Stop" : "Find my rebates";
   $("status").textContent = running || (r ? `${r.status === "ok" ? "✓" : "⚠"} ${r.message} · ${ago(r.at)}` : "Not run yet.");
   $("empty").hidden = !!state.rebates;
 }

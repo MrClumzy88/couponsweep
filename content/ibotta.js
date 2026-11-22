@@ -27,14 +27,6 @@
     location.hostname.startsWith("authenticate.") ||
     /really you|log in to ibotta|enter the 6-digit code/i.test(document.body.innerText.slice(0, 2000));
 
-  async function waitFor(ctx, test, ms) {
-    for (let t = 0; t < ms; t += 300) {
-      if (test()) return true;
-      await ctx.sleep(300);
-    }
-    return test();
-  }
-
   // The category filters: checkboxes with a label ("Dairy & Eggs", "Pantry"…).
   const categoryBoxes = () => [...document.querySelectorAll('input[type="checkbox"]')]
     .filter((i) => i.labels?.[0] && i.labels[0].innerText.trim());
@@ -43,7 +35,7 @@
   async function toggle(ctx, box) {
     const before = document.querySelectorAll(".item-offer-card").length;
     (box.labels[0] || box).click();
-    await waitFor(ctx, () => document.querySelectorAll(".item-offer-card").length !== before, 4000);
+    await ctx.waitFor(() => document.querySelectorAll(".item-offer-card").length !== before, 4000);
     await ctx.sleep(ctx.between(800, 1500));
   }
 
@@ -96,7 +88,7 @@
 
     async run(ctx) {
       if (signedOut()) throw ctx.fail("login", "Sign in to Ibotta (and finish any check it asks for), then run again.");
-      if (!(await waitFor(ctx, () => document.querySelector(".item-offer-card"), 15000))) {
+      if (!(await ctx.waitFor(() => document.querySelector(".item-offer-card"), 15000))) {
         if (signedOut()) throw ctx.fail("login", "Sign in to Ibotta (and finish any check it asks for), then run again.");
         throw ctx.fail("error", "No Ibotta offers showed up on this store's page.");
       }
@@ -107,6 +99,7 @@
         // it only shows about 100, so just wait for the count to settle.
         let last = -1;
         for (let stable = 0, i = 0; stable < 4 && i < 60; i++) {
+          ctx.checkStop();
           await ctx.sleep(500);
           const n = storeOffers()?.length ?? 0;
           stable = n === last && n > 0 ? stable + 1 : 0;
@@ -135,7 +128,7 @@
             if (!b.isConnected) return false;
             b.scrollIntoView({ block: "center" });
             b.click();
-            return waitFor(ctx, () => added(b), 8000);
+            return ctx.waitFor(() => added(b), 8000);
           }, [1500, 3500]);
           done.add(id);
           failStreak = ok ? 0 : failStreak + 1;

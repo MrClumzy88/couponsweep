@@ -78,6 +78,7 @@
       const offers = new Map();
       let token = null;
       for (let page = 0; page < 40; page++) {
+        ctx.checkStop();
         const json = await getJson(listUrl + (token ? `&page_token=${encodeURIComponent(token)}` : ""), ctx);
         const deals = json?.data?.recommended_deals;
         let fresh = 0;
@@ -92,7 +93,9 @@
       }
 
       const all = [...offers.values()].filter((o) => o.offer_status === "active");
-      const todo = all.filter((o) => !o.added && !o.auto_applied);
+      const todo = all
+        .filter((o) => !o.added && !o.auto_applied)
+        .sort((a, b) => ctx.dollarsOff(b) - ctx.dollarsOff(a));
       ctx.found(all.length, all.length - todo.length);
 
       let failStreak = 0;

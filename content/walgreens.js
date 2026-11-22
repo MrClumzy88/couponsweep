@@ -22,14 +22,6 @@
   }
   const dollars = (b) => Math.max(0, ...[...couponText(b).matchAll(/\$(\d+(?:\.\d\d)?)/g)].map((m) => Number(m[1])));
 
-  async function waitFor(ctx, test, ms) {
-    for (let t = 0; t < ms; t += 300) {
-      if (test()) return true;
-      await ctx.sleep(300);
-    }
-    return test();
-  }
-
   window.__gbc.register({
     id: "walgreens",
     name: "Walgreens",
@@ -37,13 +29,14 @@
 
     async run(ctx) {
       if (/\/login|\/signin/i.test(location.pathname)) throw ctx.fail("login", "Sign in to walgreens.com first, then run again.");
-      if (!(await waitFor(ctx, () => clipButtons().length > 0 || /clipped/i.test(document.body.innerText), 10000))) {
+      if (!(await ctx.waitFor(() => clipButtons().length > 0 || /clipped/i.test(document.body.innerText), 10000))) {
         throw ctx.fail("login", "No coupons showed up. Sign in to walgreens.com, open the coupons page, then run again.");
       }
 
       // Scroll until a few rounds in a row bring in nothing new.
       let last = -1;
       for (let stable = 0, i = 0; stable < 3 && i < 100; i++) {
+        ctx.checkStop();
         window.scrollTo(0, document.body.scrollHeight);
         await ctx.sleep(1200);
         const n = clipButtons().length;
@@ -54,7 +47,12 @@
       window.scrollTo(0, 0);
 
       const todo = clipButtons().sort((a, b) => dollars(b) - dollars(a));
-      ctx.found(todo.length, 0);
+      const todoSet = new Set(todo);
+      const clippedButtons = [...document.querySelectorAll('button[id^="clip"]')].filter((b) => !todoSet.has(b)).length;
+      const already = clippedButtons || [...document.querySelectorAll("span, div, p")]
+        .filter((el) => !el.closest('nav, header, [role="tablist"], [role="tab"]') && el.children.length === 0 && /^clipped$/i.test((el.textContent || "").trim())).length;
+      ctx.found(todo.length + already, already);
+      if (!todo.length && !already) ctx.summary = "All coupons on this page were already clipped.";
 
       let failStreak = 0;
       for (const b of todo) {
@@ -63,7 +61,7 @@
           if (!b.isConnected) return false;
           b.scrollIntoView({ block: "center" });
           b.click();
-          return waitFor(ctx, () => clipped(b), 6000);
+          return ctx.waitFor(() => clipped(b), 6000);
         }, [700, 1400], value);
         failStreak = ok ? 0 : failStreak + 1;
         if (failStreak >= 5) {

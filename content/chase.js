@@ -19,14 +19,6 @@
   // "12 of 138 Merchant 5% cash back Add offer", without its position.
   const offerKey = (t) => label(t).replace(/^\d+ of \d+ /, "");
 
-  async function waitFor(ctx, test, ms) {
-    for (let t = 0; t < ms; t += 300) {
-      if (test()) return true;
-      await ctx.sleep(300);
-    }
-    return test();
-  }
-
   window.__gbc.register({
     id: "chaseoffers",
     name: "Chase Offers",
@@ -34,7 +26,7 @@
 
     async run(ctx) {
       const signIn = "Sign in to chase.com first, then run again.";
-      await waitFor(ctx, () => signedOut() || tiles().length > 0, 30000);
+      await ctx.waitFor(() => signedOut() || tiles().length > 0, 30000);
       if (signedOut()) throw ctx.fail("login", signIn);
       if (!tiles().length) throw ctx.fail("login", `No offers showed up. ${signIn}`);
 
@@ -48,6 +40,7 @@
       const tried = new Set();
       let failStreak = 0;
       for (;;) {
+        ctx.checkStop();
         const tile = tiles().find((t) => addable(t) && !tried.has(offerKey(t)));
         if (!tile) break;
         tried.add(offerKey(tile));
@@ -56,14 +49,14 @@
           const index = tiles().indexOf(tile);
           tile.scrollIntoView({ block: "center" });
           tile.click();
-          await waitFor(ctx, () => !isList() || !addable(tile), 8000);
+          await ctx.waitFor(() => !isList() || !addable(tile), 8000);
           if (isList()) return false;
 
           // Linger on the details page the way a person would, then return.
           const added = isActivated();
           await ctx.sleep(ctx.between(800, 1600));
           history.back();
-          const back = await waitFor(ctx, () => signedOut() || tiles().length >= total, 15000);
+          const back = await ctx.waitFor(() => signedOut() || tiles().length >= total, 15000);
           if (signedOut()) throw ctx.fail("login", signIn);
           if (!back) throw ctx.fail("blocked", "Chase showed something other than the offers list, so the run stopped. Check the Chase tab.");
           return added && !addable(tiles()[index]);

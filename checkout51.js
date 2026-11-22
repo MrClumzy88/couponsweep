@@ -13,8 +13,16 @@
 
 const BASE = "https://www.checkout51.com";
 export const C51_UPLOAD = `${BASE}/account/upload`;
+const C51_CACHE_MS = 4 * 3600e3;
 
 export async function fetchC51Offers() {
+  const weekStart = c51Week().start;
+  if (typeof chrome !== "undefined" && chrome.storage?.local) {
+    const { c51Offers } = await chrome.storage.local.get("c51Offers");
+    if (c51Offers && c51Offers.weekStart === weekStart && Date.now() - c51Offers.at < C51_CACHE_MS) {
+      return c51Offers.offers;
+    }
+  }
   const offers = [];
   for (let page = 1, pages = 1; page <= pages && page <= 20; page++) {
     const r = await fetch(`${BASE}/account/offers?page=${page}`, {
@@ -26,7 +34,11 @@ export async function fetchC51Offers() {
     pages = j.num_pages || 1;
     offers.push(...(j.offers || []));
   }
-  return offers.filter((o) => Number(o.cash_back) > 0 && !o.disabled && !o.deleted && o.visible !== false);
+  const active = offers.filter((o) => Number(o.cash_back) > 0 && !o.disabled && !o.deleted && o.visible !== false);
+  if (typeof chrome !== "undefined" && chrome.storage?.local) {
+    await chrome.storage.local.set({ c51Offers: { at: Date.now(), weekStart, offers: active } }).catch(() => {});
+  }
+  return active;
 }
 
 // The current offer week: from the most recent Sunday 00:00 to Saturday 23:59.
