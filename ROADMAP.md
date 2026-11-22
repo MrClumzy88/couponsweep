@@ -46,6 +46,10 @@ Worked on weekly. The core (clipping at every supported store) stays free.
 - [x] **Rebates page** (`rebates.html`): to-do list by deadline with one
   button each, a before-you-shop table per item, and the apps with the
   Ibotta switch. The popup keeps clipping and shows a one-line summary.
+- [x] **Clear run status** (0.8.6): the rebates page shows each step while
+  Find my rebates runs, then Done with the matches named, or Didn't finish
+  with what to do; Stop button; runs no longer die when Chrome idles the
+  background worker.
 - [x] **Stacks**: one list per product of every exact deal (coupons.com,
   Checkout 51, Ibotta). Next: add the store's own digital coupons (the
   Albertsons gallery) to the stack. Candidate for the paid tier.

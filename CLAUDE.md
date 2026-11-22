@@ -108,6 +108,14 @@ page at run time.
   receipts show on albertsons.com). History goes back about a year. The
   script reuses the page's own request body; never store the token.
   `posDateTime` is local store time written with a "Z".
+- **Background worker** (as of 2026-11-22): Chrome stops an idle MV3
+  worker after ~30 s, and waiting on a page (a timer) isn't activity, so a
+  run died silently and `live` said "Reading…" forever. `enqueue` pings
+  `chrome.runtime.getPlatformInfo` every 20 s while a run is going, and a
+  fresh worker marks any leftover `live` entry "Interrupted". Tabs open from
+  before an extension reload keep the old scripts and never answer;
+  `syncPurchases` and `startRunner` reload such a tab once. The rebates page
+  shows the run's step from `rebateStep` (set in `runIbotta`).
 - **Rebate matching** (`matcher.js`): Ibotta offers carry `terms` with the
   covered products ("• Plain\n• Vanilla", often "…, 32 oz only") and a
   `description` size limit. Only "exact" matches are added; brand-only
