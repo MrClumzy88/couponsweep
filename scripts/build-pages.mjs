@@ -61,6 +61,11 @@ const FAMILIES = {
     how: "It presses the page's own offer buttons on the Walmart Cash offers page, then goes through product search one department at a time, because many offers only show there.",
     limit: "A full Walmart run is slow (up to half an hour) because it goes page by page like a person would.",
   },
+  ibotta: {
+    kind: "cash back offers",
+    how: "It reads your Albertsons-family receipts, finds the Ibotta offers whose product lists exactly match what you buy, and presses the page's own <em>+</em> on only those, slowly. It also tells you which recent receipt to scan in the Ibotta app, and by when.",
+    limit: "<strong>Use at your own risk.</strong> Ibotta's Terms of Use ban tools like this, and Ibotta can close an account and keep the cash back in it. CouponSweep makes you accept a warning before Ibotta runs, and it only runs when you start it.",
+  },
   chase: {
     kind: "Chase Offers",
     how: "It presses the page's own offer tiles, slowly, for the card the page has open.",

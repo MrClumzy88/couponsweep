@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "CouponSweep – Auto Coupon Clipper for Kroger, H-E-B, CVS & More",
   "short_name": "CouponSweep",
-  "version": "0.8.0",
+  "version": "0.8.6",
   "description": "Automatically clip every digital coupon on Kroger, H-E-B, Target, Walmart, CVS, Walgreens, BJ’s, Safeway and more in one click.",
   "icons": {
     "16": "icons/icon-16.png",
@@ -14,7 +14,8 @@
   "permissions": [
     "storage",
     "alarms",
-    "notifications"
+    "notifications",
+    "activeTab"
   ],
   "host_permissions": [
     "https://www.heb.com/*",
@@ -62,7 +63,10 @@
     "https://www.cvs.com/*",
     "https://www.walgreens.com/*",
     "https://www.bjs.com/*",
-    "https://secure.chase.com/web/auth/*"
+    "https://secure.chase.com/web/auth/*",
+    "https://ibotta.com/*",
+    "https://www.checkout51.com/*",
+    "https://www.coupons.com/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -122,7 +126,8 @@
         "https://www.cvs.com/*",
         "https://www.walgreens.com/*",
         "https://www.bjs.com/*",
-        "https://secure.chase.com/web/auth/*"
+        "https://secure.chase.com/web/auth/*",
+        "https://ibotta.com/*"
       ],
       "js": [
         "content/bridge.js"
@@ -161,6 +166,34 @@
       ],
       "world": "MAIN",
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.albertsons.com/order-account/*",
+        "https://www.tomthumb.com/order-account/*",
+        "https://www.safeway.com/order-account/*",
+        "https://www.vons.com/order-account/*",
+        "https://www.randalls.com/order-account/*",
+        "https://www.jewelosco.com/order-account/*",
+        "https://www.acmemarkets.com/order-account/*",
+        "https://www.shaws.com/order-account/*",
+        "https://www.starmarket.com/order-account/*",
+        "https://www.pavilions.com/order-account/*",
+        "https://www.andronicos.com/order-account/*",
+        "https://www.carrsqc.com/order-account/*",
+        "https://www.haggen.com/order-account/*",
+        "https://www.kingsfoodmarkets.com/order-account/*",
+        "https://www.balduccis.com/order-account/*",
+        "https://www.shopunitedsupermarkets.com/order-account/*",
+        "https://www.shopmarketstreet.com/order-account/*",
+        "https://www.shopamigos.com/order-account/*",
+        "https://www.shopalbertsonsmarket.com/order-account/*"
+      ],
+      "js": [
+        "content/albertsons-purchases.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_start"
     },
     {
       "matches": [
@@ -289,6 +322,72 @@
       ],
       "world": "MAIN",
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://ibotta.com/*"
+      ],
+      "js": [
+        "content/runner.js",
+        "content/ibotta.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.checkout51.com/account/upload*"
+      ],
+      "js": [
+        "content/checkout51.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.albertsons.com/order-account/*",
+        "https://www.tomthumb.com/order-account/*",
+        "https://www.safeway.com/order-account/*",
+        "https://www.vons.com/order-account/*",
+        "https://www.randalls.com/order-account/*",
+        "https://www.jewelosco.com/order-account/*",
+        "https://www.acmemarkets.com/order-account/*",
+        "https://www.shaws.com/order-account/*",
+        "https://www.starmarket.com/order-account/*",
+        "https://www.pavilions.com/order-account/*",
+        "https://www.andronicos.com/order-account/*",
+        "https://www.carrsqc.com/order-account/*",
+        "https://www.haggen.com/order-account/*",
+        "https://www.kingsfoodmarkets.com/order-account/*",
+        "https://www.balduccis.com/order-account/*",
+        "https://www.shopunitedsupermarkets.com/order-account/*",
+        "https://www.shopmarketstreet.com/order-account/*",
+        "https://www.shopamigos.com/order-account/*",
+        "https://www.shopalbertsonsmarket.com/order-account/*"
+      ],
+      "js": [
+        "content/albertsons-receipt.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.coupons.com/*"
+      ],
+      "js": [
+        "content/couponscom-capture.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://www.coupons.com/*"
+      ],
+      "js": [
+        "content/couponscom.js"
+      ],
+      "run_at": "document_start"
     }
   ]
 }

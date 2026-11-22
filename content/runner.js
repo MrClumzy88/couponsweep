@@ -59,6 +59,12 @@
   let running = false;
   let stopRequested = false;
 
+  function requestStop() {
+    stopRequested = true;
+    for (const w of [...wakers.values()]) w();
+    wakers.clear();
+  }
+
   function emit(type, data) {
     window.dispatchEvent(new CustomEvent(type, { detail: JSON.stringify(data) }));
   }
@@ -91,12 +97,13 @@
     btn.style.cssText =
       "background:#475569;color:#fff;border:0;border-radius:6px;padding:5px 12px;cursor:pointer;font:inherit";
     btn.onclick = () => {
-      if (running) stopRequested = true;
+      if (running) requestStop();
       else { panel.remove(); panel = null; }
     };
     const note = document.createElement("div");
     note.style.cssText = "margin-top:10px;font-size:12px;color:#94a3b8";
-    note.textContent = "Unofficial; not affiliated with any store. Automated clipping may go against the store's terms. Use at your own risk.";
+    note.textContent = adapter.note || "Unofficial; not affiliated with any store. Automated clipping may go against the store's terms. Use at your own risk.";
+    if (adapter.risky) note.style.cssText += ";color:#fde68a;font-weight:600";
     panel.append(title, msg, bar, btn, note);
     document.body.append(panel);
     return panel;
@@ -140,8 +147,13 @@
     fab.onclick = () => {
       // Nothing runs until the user has accepted the notice in the popup
       // (content/bridge.js mirrors that flag onto the page).
-      if (document.documentElement.dataset.gbcAck === "1") return run({ auto: false });
-      setPanel("Open the CouponSweep button in Chrome's toolbar and read the notice there first.");
+      const ack = document.documentElement.dataset.gbcAck === "1";
+      // Risky stores (Ibotta) also need their own warning accepted in the popup.
+      const riskOk = !adapter.risky || document.documentElement.dataset.gbcRisk?.split(",").includes(adapter.id);
+      if (ack && riskOk) return run({ auto: false });
+      setPanel(ack
+        ? `Open the CouponSweep button in Chrome's toolbar, find ${adapter.name} and read its warning there first.`
+        : "Open the CouponSweep button in Chrome's toolbar and read the notice there first.");
       panel.querySelector('[data-role="btn"]').textContent = "Close";
       syncFab();
     };
@@ -149,7 +161,7 @@
   }
 
   // ── Run ────────────────────────────────────────────────────────────────
-  async function run({ auto }) {
+  async function run({ auto, opts = {} }) {
     if (running || !adapter) return;
     running = true;
     stopRequested = false;
@@ -164,6 +176,9 @@
     };
 
     const ctx = {
+      opts, // Per-run settings from the background (Ibotta's mode and offer ids).
+      summary: null, // An adapter can set its own closing message.
+      emit,
       sleep,
       between,
       dollarsOff,
@@ -192,15 +207,24 @@
       status: (text) => report(text),
       // For long stretches with nothing to clip (paging, moving between lists).
       checkStop() { if (stopRequested) throw new StopRun("stopped", "Stopped."); },
+      async waitFor(test, ms) {
+        for (let t = 0; t < ms; t += 300) {
+          if (stopRequested) throw new StopRun("stopped", "Stopped.");
+          if (test()) return true;
+          await sleep(300);
+        }
+        if (stopRequested) throw new StopRun("stopped", "Stopped.");
+        return !!test();
+      },
     };
 
     try {
       report("Looking up offers…");
       await adapter.run(ctx);
       const left = result.total - result.already;
-      result.message = left === 0
+      result.message = ctx.summary || (left === 0
         ? `All ${result.total} offers were already clipped.`
-        : `Clipped ${result.clipped} of ${left} new offers${result.failed ? ` (${result.failed} failed)` : ""}.`;
+        : `Clipped ${result.clipped} of ${left} new offers${result.failed ? ` (${result.failed} failed)` : ""}.`);
     } catch (e) {
       if (e instanceof StopRun) {
         result.status = e.status;
@@ -236,5 +260,8 @@
     let opts = {};
     try { opts = JSON.parse(e.detail); } catch {}
     run(opts);
+  });
+  window.addEventListener("gbc:stop", () => {
+    if (running) requestStop();
   });
 })();

@@ -100,6 +100,45 @@ page at run time.
   `window.next.router.push` so the content script survives; a full page load
   would end the run. The "In-store" toggle is a sticky per-user setting; the
   adapter leaves it alone.
+- **Albertsons receipts** (`content/albertsons-purchases.js`, document_start
+  on `/order-account/*`): `/order-account/orders` lists in-store receipts
+  with POST `/order-account/api/instore` `{params:{clubcard}, token}`; the
+  same call with `params.id` returns a receipt's `items` (name, UPC as `id`,
+  quantity, prices, discounts). One account covers every banner (Tom Thumb
+  receipts show on albertsons.com). History goes back about a year. The
+  script reuses the page's own request body; never store the token.
+  `posDateTime` is local store time written with a "Z".
+- **Background worker** (as of 2026-11-22): Chrome stops an idle MV3
+  worker after ~30 s, and waiting on a page (a timer) isn't activity, so a
+  run died silently and `live` said "Reading…" forever. `enqueue` pings
+  `chrome.runtime.getPlatformInfo` every 20 s while a run is going, and a
+  fresh worker marks any leftover `live` entry "Interrupted". Tabs open from
+  before an extension reload keep the old scripts and never answer;
+  `syncPurchases` and `startRunner` reload such a tab once. The rebates page
+  shows the run's step from `rebateStep` (set in `runIbotta`).
+- **Rebate matching** (`matcher.js`): Ibotta offers carry `terms` with the
+  covered products ("• Plain\n• Vanilla", often "…, 32 oz only") and a
+  `description` size limit. Only "exact" matches are added; brand-only
+  matches are "possible". Offer names' non-category words are product lines
+  ("Oikos Pro" ≠ "Oikos Triple Zero").
+- **Ibotta** (`content/ibotta.js`, as of 2026-11-15): a rebate app, opt-in
+  and `risky: true` (Ibotta's terms ban "programmatic means"; a closed
+  account loses its cash), so it runs only after the popup's warning is
+  accepted (`settings.riskAccepted.ibotta`, mirrored to the page as
+  `data-gbc-risk`) and never in the daily run. `runIbotta` in background.js
+  runs each checked store's Ibotta page from `rebates.js` in turn. Use the
+  signed-in URLs `/retailers/<Name>/<id>`; `/retailers/groups/…` says
+  "couldn't find that retailer" once signed in. Cards `.item-offer-card`,
+  button `aria-label="Add offer to list"` → "Offer added to list" (Ibotta's
+  code sends PUT `api.ibotta.com/v2/customers/<you>/offers/<id>.json`).
+  "LOCKED" offers have no button. The page loads every offer for the store
+  into `$nuxt.$store.state.offers` (about 490 at Albertsons, each with
+  `terms`, `retailers`, `activated`, `expiration`) but shows only about 100;
+  category filter checkboxes (`?selectedCategoryIds=`) show the rest.
+  The adapter never adds every offer: mode "scan" reads, mode "add" presses
+  + only on the ids the matcher picked. New
+  devices and full page loads can land on `authenticate.ibotta.com` with an
+  emailed 6-digit code: stop and let the user do it.
 - **Chase Offers** (`content/chase.js`): a bank account, so the adapter drives
   the page and stays out of the daily run (`noDaily`). The whole list is in the
   page at `#/dashboard/merchantOffers/offerCategoriesPage?offerCategoryName=ALL`

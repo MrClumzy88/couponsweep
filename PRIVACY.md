@@ -1,6 +1,6 @@
 # Privacy policy
 
-*Last updated: November 13, 2026*
+*Last updated: November 15, 2026*
 
 CouponSweep is a browser extension that clips digital coupons on store
 websites you're already signed in to. It has no servers, no accounts, no
@@ -44,7 +44,19 @@ your computer, and nowhere else:
   their dollar value where the store shows one (for the popup's monthly
   total; entries older than about a year are deleted);
 - whether to show a notification after the daily run;
-- the latest release version seen on GitHub.
+- the latest release version seen on GitHub;
+- only if you use **Find my rebates** (Ibotta): your in-store receipts from
+  Albertsons-family sites for the last 120 days or so (date, store, items and
+  prices; no card numbers), the Ibotta offers for your stores, and which of
+  them match. CouponSweep reads your receipts from the store's own purchases
+  page, using the sign-in that page already has, and keeps that sign-in only
+  in the page's memory. Receipts are never sent to Ibotta, Checkout 51 or
+  anyone else; CouponSweep only presses + on the matching offers on Ibotta's
+  own page, and ticks matching offers on Checkout 51's upload page for you to
+  submit. It reads Checkout 51's weekly offer list from checkout51.com and the
+  printable coupon list coupons.com's own page loads (and clips matching
+  ones there for you to print), and
+  keeps which receipts you've ticked as scanned in Fetch.
 
 Removing the extension deletes all of it.
 

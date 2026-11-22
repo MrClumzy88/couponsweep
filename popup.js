@@ -1,4 +1,5 @@
 import { STORES, sortStores } from "./stores.js";
+import { summary, day } from "./rebate-todos.js";
 
 const mine = document.getElementById("stores");
 const more = document.getElementById("more-stores");
@@ -7,7 +8,9 @@ const empty = document.getElementById("empty");
 const tpl = document.getElementById("store-row");
 const live = document.getElementById("live");
 const runAll = document.getElementById("run-all");
+const stopBtn = document.getElementById("stop");
 const retry = document.getElementById("retry");
+const storeFilter = document.getElementById("store-filter");
 // Checked stores whose last run stopped on something the user can fix.
 const NEEDS_USER = new Set(["login", "blocked", "error"]);
 let retryIds = [];
@@ -67,7 +70,7 @@ function renderMonth(history = []) {
   month.title = "Coupons CouponSweep clipped this month. The dollar amount only counts coupons that show a plain \"$ off\" value, so the real figure is higher.";
 }
 
-function render({ results = {}, live: running, history }) {
+function render({ results = {}, live: running, history, rebates, rebateDone }) {
   const now = liveMap(running);
   const busy = Object.keys(now).length > 0;
   // "Your stores" are the checked or pinned ones, pinned first, then in the
@@ -76,6 +79,7 @@ function render({ results = {}, live: running, history }) {
   let count = 0;
   for (const s of ordered) {
     const row = rows[s.id];
+    if (!row) continue; // Rebate apps (Ibotta) live on the rebates page.
     const on = !!settings.enabled?.[s.id] && !s.comingSoon;
     const pinned = !!settings.pinned?.[s.id];
     row.querySelector(".enabled").checked = on;
@@ -104,8 +108,9 @@ function render({ results = {}, live: running, history }) {
   dailyHour.value = Number.isInteger(settings.dailyHour) ? String(settings.dailyHour) : "";
   dailyHour.disabled = !settings.acknowledged || !settings.daily;
   notice.hidden = !!settings.acknowledged;
-  runAll.disabled = busy || !settings.acknowledged || !STORES.some((s) => settings.enabled?.[s.id] && !s.comingSoon);
-  const stopped = ordered.filter((s) => settings.enabled?.[s.id] && !s.comingSoon && NEEDS_USER.has(results[s.id]?.status));
+  runAll.disabled = busy || !settings.acknowledged || !STORES.some((s) => settings.enabled?.[s.id] && !s.comingSoon && !s.rebate);
+  stopBtn.hidden = !busy;
+  const stopped = ordered.filter((s) => settings.enabled?.[s.id] && !s.comingSoon && !s.rebate && NEEDS_USER.has(results[s.id]?.status));
   retryIds = stopped.map((s) => s.id);
   retry.hidden = busy || !settings.acknowledged || !stopped.length;
   retry.textContent = stopped.length === 1
@@ -115,8 +120,74 @@ function render({ results = {}, live: running, history }) {
   live.hidden = !busy;
   const names = Object.keys(now).map((id) => STORES.find((s) => s.id === id)?.name || id);
   if (busy) live.textContent = `Working on ${names.join(", ")}…`;
+  applyStoreFilter();
   renderMonth(history);
+  renderRebatesCard(rebates, rebateDone, now.ibotta);
 }
+
+function applyStoreFilter() {
+  const query = (storeFilter.value || "").trim().toLowerCase();
+  for (const s of STORES.filter((x) => !x.rebate)) {
+    const row = rows[s.id];
+    if (!row) continue;
+    row.hidden = !isMine(s) && !!query && !s.name.toLowerCase().includes(query) && !s.host.toLowerCase().includes(query);
+  }
+}
+
+// ── Rebates card: a one-line summary and the way into rebates.html ───────
+document.getElementById("open-rebates").addEventListener("click", () => {
+  chrome.tabs.create({ url: chrome.runtime.getURL("rebates.html") });
+  window.close();
+});
+function renderRebatesCard(rebates, rebateDone, running) {
+  const s = summary(rebates, rebateDone);
+  document.getElementById("rebates-summary").textContent = running ? running
+    : !s ? "Find cash back on what you buy"
+    : `${s.open ? `${s.open} to do` : "Nothing to do"}${s.deals ? ` · ${s.deals} deal${s.deals === 1 ? "" : "s"} on your usual items` : ""}${s.stacks ? ` (${s.stacks} stack${s.stacks === 1 ? "" : "s"})` : ""}`;
+}
+
+// "This receipt": on an Albertsons-family receipt-details page (the click on
+// the toolbar button lets CouponSweep picture that tab).
+(async () => {
+  let tab;
+  try { [tab] = await chrome.tabs.query({ active: true, currentWindow: true }); } catch { return; }
+  const m = tab?.url?.match(/^https:\/\/([^/]+)\/order-account\/orders\/instore\/([^/]+)\/(receipt-details|email-receipt)/);
+  if (!m || !STORES.some((s) => s.adapter === "albertsons" && s.host === m[1])) return;
+  const [, host, tx] = m;
+  const box = document.getElementById("this-receipt");
+  const status = document.getElementById("receipt-status");
+  box.hidden = false;
+  const say = (t) => { status.hidden = !t; status.textContent = t; };
+  const detailsUrl = `https://${host}/order-account/orders/instore/${tx}/receipt-details`;
+
+  document.getElementById("save-receipt").addEventListener("click", async () => {
+    if (!tab.url.includes("/receipt-details")) { await chrome.tabs.update(tab.id, { url: detailsUrl }); say("Opened the receipt. Press Save again once it shows."); return; }
+    say("Taking the picture…");
+    const r = await chrome.runtime.sendMessage({ type: "capture-receipt", tabId: tab.id });
+    if (r?.error) return say(r.error);
+    const a = Object.assign(document.createElement("a"), { href: r.image, download: `receipt-${(r.date || tx).replace(/[^\w]+/g, "-")}.png` });
+    a.click();
+    say("Saved to your Downloads folder.");
+  });
+
+  document.getElementById("receipt-c51").addEventListener("click", async () => {
+    if (!tab.url.includes("/receipt-details")) { await chrome.tabs.update(tab.id, { url: detailsUrl }); say("Opened the receipt. Press the button again once it shows."); return; }
+    // Tick this receipt's matches, if Find my rebates found any.
+    const { rebates } = await chrome.storage.local.get("rebates");
+    const hit = rebates?.c51?.receipts?.find((x) => x.receipt.tx === tx);
+    const ids = (hit?.hits || []).filter((h) => h.level === "exact").map((h) => h.offer.id);
+    say("Taking the picture…");
+    const r = await chrome.runtime.sendMessage({ type: "c51-prepare", tabId: tab.id, tx, host, ids, label: hit ? `${hit.receipt.store}, ${day(Date.parse(hit.receipt.at))}` : "This receipt" });
+    say(r?.error || "Opened Checkout 51 with the picture attached.");
+  });
+
+  // Albertsons' own "Email receipt" page: the user presses Send (to their own
+  // address). Fetch can collect e-receipts from a linked email account.
+  document.getElementById("receipt-email").addEventListener("click", () => {
+    chrome.tabs.update(tab.id, { url: `https://${host}/order-account/orders/instore/${tx}/email-receipt` });
+    say("Press Send on the store's page. In the Fetch app, link that email under eReceipts.");
+  });
+})();
 
 // ── Drag to reorder "Your stores" ─────────────────────────────────────────
 let dragId = null;
@@ -156,7 +227,7 @@ mine.addEventListener("drop", (e) => {
 });
 
 // ── Rows ─────────────────────────────────────────────────────────────────
-for (const s of STORES) {
+for (const s of STORES.filter((s) => !s.rebate)) {
   const row = tpl.content.firstElementChild.cloneNode(true);
   row.dataset.id = s.id;
   const link = row.querySelector(".store-link");
@@ -176,7 +247,9 @@ for (const s of STORES) {
   rows[s.id] = row;
 }
 runAll.addEventListener("click", () => chrome.runtime.sendMessage({ type: "run" }));
+stopBtn.addEventListener("click", () => chrome.runtime.sendMessage({ type: "stop" }));
 retry.addEventListener("click", () => chrome.runtime.sendMessage({ type: "run", stores: retryIds }));
+storeFilter.addEventListener("input", applyStoreFilter);
 daily.addEventListener("change", () => saveSettings({ daily: daily.checked }));
 dailyHour.addEventListener("change", () => saveSettings({ dailyHour: dailyHour.value === "" ? null : Number(dailyHour.value) }));
 notify.addEventListener("change", () => saveSettings({ notify: notify.checked }));
@@ -217,7 +290,7 @@ async function checkForUpdate() {
 checkForUpdate();
 
 const refresh = async () => {
-  const data = await chrome.storage.local.get(["settings", "results", "live", "history"]);
+  const data = await chrome.storage.local.get(["settings", "results", "live", "history", "rebates", "rebateDone"]);
   settings = data.settings || {};
   render(data);
 };

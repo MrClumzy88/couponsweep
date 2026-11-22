@@ -2,9 +2,10 @@
 // GitHub runs the same thing on every pull request.
 //
 // Checks: every script parses, the manifest is valid and only points at files
-// that exist, store ids are unique, the popup's version matches the manifest's,
-// the help website in docs/ is up to date with stores.js, and nothing that looks like personal data (email addresses, long account or
-// card numbers, tokens) has been added.
+// that exist, ES imports and HTML asset links resolve, release.yml packages all
+// runtime files, store ids are unique and covered by manifest.json, the help
+// website in docs/ is up to date with stores.js, and nothing that looks like
+// personal data (email addresses, long account or card numbers, tokens) has been added.
 
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -36,6 +37,34 @@ for (const f of files(".").filter((f) => extname(f) === ".js" || extname(f) === 
   }
 }
 
+// 1b. Root ES module relative imports and HTML local src/href assets exist.
+const rootEntries = readdirSync(root).filter((name) => statSync(join(root, name)).isFile());
+for (const f of rootEntries.filter((name) => extname(name) === ".js")) {
+  const text = readFileSync(join(root, f), "utf8");
+  for (const m of text.matchAll(/\b(?:import|export)\b[^;]*?\bfrom\s*["'](\.[^"']+)["']/g)) {
+    if (!existsSync(join(root, m[1]))) fail(`${f} imports missing file ${m[1]}`);
+  }
+}
+for (const f of rootEntries.filter((name) => extname(name) === ".html")) {
+  const text = readFileSync(join(root, f), "utf8");
+  for (const m of text.matchAll(/\b(?:src|href)=["']([^"']+)["']/g)) {
+    const ref = m[1];
+    if (/^(?:https?:|data:|#|mailto:)/i.test(ref)) continue;
+    if (!existsSync(join(root, ref))) fail(`${f} references missing file ${ref}`);
+  }
+}
+
+// 1c. release.yml copies every root .js, .html, and .css runtime file.
+const releaseYmlPath = join(root, ".github", "workflows", "release.yml");
+if (existsSync(releaseYmlPath)) {
+  const releaseYml = readFileSync(releaseYmlPath, "utf8");
+  const cpLine = releaseYml.split(/\r?\n/).find((l) => /^\s*cp\s+-r\s+/.test(l)) || "";
+  const packaged = new Set(cpLine.trim().split(/\s+/));
+  for (const f of rootEntries.filter((name) => /\.(js|html|css)$/.test(name))) {
+    if (!packaged.has(f)) fail(`release.yml doesn't package ${f}`);
+  }
+}
+
 // 2. The manifest is valid JSON and every file it names exists.
 let manifest = null;
 try {
@@ -55,11 +84,20 @@ if (manifest) {
   if (!/^\d+\.\d+\.\d+$/.test(manifest.version || "")) fail(`manifest version "${manifest.version}" isn't x.y.z`);
 }
 
-// 3. Store ids are unique and each store's adapter file exists.
+// 3. Store ids are unique, each store's adapter file exists, and manifest covers runnable stores.
 const { STORES } = await import(new URL("../stores.js", import.meta.url));
 const ids = STORES.map((s) => s.id);
 for (const id of new Set(ids.filter((id, i) => ids.indexOf(id) !== i))) fail(`store id "${id}" is used twice`);
 for (const s of STORES) if (!s.comingSoon && !existsSync(join(root, "content", `${s.adapter}.js`))) fail(`store ${s.id} uses missing adapter content/${s.adapter}.js`);
+if (manifest) {
+  const hostPerms = manifest.host_permissions || [];
+  const csMatches = (manifest.content_scripts || []).flatMap((c) => c.matches || []);
+  for (const s of STORES.filter((x) => !x.comingSoon)) {
+    const prefix = `https://${s.host}/`;
+    if (!hostPerms.some((p) => p.startsWith(prefix))) fail(`manifest.json host_permissions missing ${prefix} (for ${s.id})`);
+    if (!csMatches.some((p) => p.startsWith(prefix))) fail(`manifest.json content_scripts missing ${prefix} (for ${s.id})`);
+  }
+}
 
 // 3b. The help website in docs/ matches stores.js (rebuild it with
 // `node scripts/build-pages.mjs`).

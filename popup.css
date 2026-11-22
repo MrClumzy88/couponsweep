@@ -108,9 +108,31 @@ button.primary {
 .disclaimer { margin: 12px 0 0; font-size: 11px; color: var(--muted); }
 details { margin: 0 0 12px; }
 summary { cursor: pointer; color: var(--muted); padding: 4px 0; }
+.store-filter {
+  width: 100%;
+  margin: 4px 0 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--btn);
+  color: var(--fg);
+  font: inherit;
+}
 #more-stores { margin: 4px 0 0; max-height: 260px; overflow-y: auto; }
 #more-stores .run, #more-stores .result { display: none; }
 .daily { display: flex; gap: 6px; align-items: center; margin-top: 12px; color: var(--muted); }
 .daily.sub-option { margin-top: 4px; padding-left: 20px; }
 .daily select { font: inherit; color: var(--fg); background: var(--btn); border: 1px solid var(--line); border-radius: 4px; padding: 1px 4px; }
 .month { margin: 10px 0 0; font-weight: 600; }
+.this-receipt { margin: 0 0 12px; padding: 8px 10px; border: 1px solid var(--accent); border-radius: 6px; }
+.this-receipt button { display: block; width: 100%; margin-top: 6px; text-align: left; }
+.this-receipt p { margin: 4px 0; }
+.rebates-card {
+  display: grid; grid-template-columns: 1fr auto; gap: 0 8px; align-items: center;
+  width: 100%; margin-top: 12px; padding: 10px 12px; text-align: left;
+  background: none; border: 1px solid var(--accent); border-radius: 8px;
+}
+.rebates-card:hover { background: var(--btn); }
+.rc-title { font-weight: 700; }
+.rc-sub { grid-column: 1; color: var(--muted); font-size: 12px; }
+.rc-go { grid-column: 2; grid-row: 1 / span 2; color: var(--accent); font-weight: 700; }

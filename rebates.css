@@ -1,0 +1,117 @@
+:root {
+  --bg: #f8fafc;
+  --card: #ffffff;
+  --fg: #0f172a;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --accent: #15803d;
+  --accent-fg: #ffffff;
+  --warn: #b45309;
+  --bad: #b91c1c;
+  --btn: #f1f5f9;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b1220;
+    --card: #111827;
+    --fg: #e5e7eb;
+    --muted: #94a3b8;
+    --line: #1f2937;
+    --accent: #22c55e;
+    --accent-fg: #052e16;
+    --warn: #f59e0b;
+    --bad: #f87171;
+    --btn: #1f2937;
+  }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.top, main { max-width: 880px; margin: 0 auto; padding: 0 16px; }
+.top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-top: 24px; padding-bottom: 8px; flex-wrap: wrap; }
+h1 { margin: 0; font-size: 26px; }
+h2 { font-size: 18px; margin: 28px 0 8px; }
+h3 { font-size: 16px; margin: 0 0 6px; }
+.sub, .hint { color: var(--muted); margin: 4px 0; }
+.run { text-align: right; min-width: 220px; }
+.status { color: var(--muted); margin: 6px 0 0; font-size: 13px; }
+button {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 14px;
+  background: var(--btn);
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+button:disabled { opacity: .5; cursor: default; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 600; }
+button.danger { background: none; color: var(--bad); border: 2px solid var(--bad); font-weight: 700; }
+a { color: var(--accent); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+.card.warn { border: 2px solid var(--warn); margin-top: 16px; }
+.count { color: var(--muted); font-weight: normal; }
+
+/* To do */
+.todos { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.todo { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; grid-template-columns: auto 1fr auto; gap: 4px 12px; align-items: start; }
+.todo .tick { margin-top: 3px; width: 18px; height: 18px; }
+.todo .head { font-weight: 600; }
+.todo .meta { color: var(--muted); font-size: 13px; }
+.todo .app { display: inline-block; font-size: 12px; font-weight: 700; border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; margin-right: 6px; }
+.todo ul { margin: 6px 0 0; padding-left: 18px; }
+.todo .act { align-self: center; }
+.todo .note { color: var(--muted); font-size: 13px; margin: 4px 0 0; }
+.todo.done .head { text-decoration: line-through; color: var(--muted); }
+.todo .checklist { list-style: none; padding: 0; }
+.todo .checklist label { display: flex; gap: 8px; align-items: center; }
+.due-soon { font-weight: 700; color: var(--warn); }
+
+/* Before you shop */
+.table-wrap { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 14px; }
+th { color: var(--muted); font-weight: 600; font-size: 13px; }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; white-space: nowrap; }
+td .none { color: var(--muted); }
+td .off { color: var(--muted); font-style: italic; }
+
+.plain { padding-left: 18px; }
+.plain li { margin: 6px 0; }
+.plain .why { color: var(--muted); font-size: 13px; }
+
+/* Apps */
+.apps { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.apps p { margin: 4px 0 8px; }
+.pill { font-size: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; font-weight: 600; vertical-align: middle; }
+.risk-line { color: var(--warn); font-size: 13px; }
+.links a { margin-right: 10px; }
+
+/* Ibotta warning */
+.modal { position: fixed; inset: 0; background: rgba(0, 0, 0, .5); display: grid; place-items: center; padding: 16px; }
+.modal-box { background: var(--card); border: 4px solid var(--bad); border-radius: 12px; max-width: 480px; padding: 18px 20px; }
+.modal-box h2 { text-align: center; margin: 0 0 10px; }
+.check { display: flex; gap: 8px; align-items: flex-start; margin: 12px 0; }
+.buttons { display: flex; gap: 10px; justify-content: flex-end; }
+main { padding-bottom: 40px; }
+
+/* Run box: symbols carry the meaning (✓ ▶ ○ ⚠), colour only helps. */
+.runbox { margin-top: 16px; border-width: 2px; }
+.runbox.ok { border-color: var(--accent); }
+.runbox.bad { border-color: var(--warn); }
+.runbox.busy { border-color: var(--fg); }
+.run-title { font-size: 18px; font-weight: 700; margin: 0 0 6px; }
+.run-steps { list-style: none; padding: 0; margin: 0 0 6px; }
+.run-steps li { padding: 2px 0; color: var(--muted); }
+.run-steps li .mark { display: inline-block; width: 1.6em; font-weight: 700; }
+.run-steps li.now { color: var(--fg); font-weight: 700; }
+.run-steps li.done { color: var(--fg); }
+.run-detail { margin: 4px 0 0; }
+.run-detail .todo-hint { display: block; font-weight: 700; margin-top: 4px; }
+.run-matches { margin: 4px 0 0; padding-left: 20px; }

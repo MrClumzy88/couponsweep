@@ -22,18 +22,38 @@
     <button id="accept" class="primary">I understand</button>
   </div>
 
+  <!-- Shown when the open tab is an Albertsons-family receipt page. -->
+  <div id="this-receipt" class="this-receipt" hidden>
+    <strong>This receipt</strong>
+    <p class="hint">The store's own digital receipt, with the same barcode as
+    the paper one.</p>
+    <button id="save-receipt">Save receipt image</button>
+    <button id="receipt-c51">Upload to Checkout 51 →</button>
+    <button id="receipt-email">Email it to me (for Fetch) →</button>
+    <p id="receipt-status" class="hint" hidden></p>
+  </div>
+
   <p id="empty" class="hint" hidden>Check the stores you shop at.</p>
   <ul id="stores"></ul>
 
   <details id="more">
     <summary>More stores</summary>
+    <input id="store-filter" class="store-filter" type="search" placeholder="Search stores…" aria-label="Search stores">
     <ul id="more-stores"></ul>
   </details>
 
   <button id="run-all" class="primary">Clip all checked stores</button>
+  <button id="stop" class="retry" hidden>■ Stop running stores</button>
   <button id="retry" class="retry" hidden></button>
   <p id="live" class="live" hidden></p>
   <p id="month" class="month" hidden></p>
+
+  <!-- Rebate apps live on their own page (rebates.html); this is the way in. -->
+  <button id="open-rebates" class="rebates-card">
+    <span class="rc-title">💵 Rebates</span>
+    <span id="rebates-summary" class="rc-sub">Ibotta, Checkout 51, Fetch, coupons.com</span>
+    <span class="rc-go">Open →</span>
+  </button>
 
   <label class="daily"><input type="checkbox" id="daily"> Run once a day automatically</label>
   <label class="daily sub-option">At <select id="daily-hour" title="When the daily run starts. Chrome has to be open then; if it isn't, the run starts next time Chrome opens."><option value="">any time</option></select></label>

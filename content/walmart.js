@@ -54,25 +54,18 @@
     return [...seen.values()];
   }
 
-  async function waitFor(ctx, test, ms) {
-    for (let t = 0; t < ms; t += 300) {
-      if (test()) return true;
-      await ctx.sleep(300);
-    }
-    return test();
-  }
-
   // Moves to a search URL with the site's router; a full page load would end
   // this script. Resolves once the results have changed.
   async function goSearch(ctx, href) {
+    if (location.pathname + location.search === href && tiles().length > 0) return;
     const router = window.next?.router;
     if (!router?.push) throw ctx.fail("error", "Walmart's page changed; the search pass can't move between pages. The offers page pass still ran.");
     const before = location.pathname + location.search;
     const first = firstId();
     await router.push(href);
-    await waitFor(ctx, () => location.pathname + location.search !== before, 10000);
+    await ctx.waitFor(() => location.pathname + location.search !== before, 10000);
     // Results swap in after the route changes; empty pages never get tiles.
-    await waitFor(ctx, () => tiles().length > 0 && firstId() !== first, 10000);
+    await ctx.waitFor(() => tiles().length > 0 && firstId() !== first, 10000);
     await ctx.sleep(ctx.between(800, 1500));
   }
 
@@ -88,7 +81,7 @@
       if (!location.pathname.startsWith("/offer/all-offers")) {
         throw ctx.fail("error", "Open walmart.com/offer/all-offers, then run again.");
       }
-      if (!(await waitFor(ctx, () => cards().length > 0, 10000))) {
+      if (!(await ctx.waitFor(() => cards().length > 0, 10000))) {
         throw ctx.fail("error", "Walmart's offers didn't load. Reload the page and run again.");
       }
 
@@ -102,6 +95,7 @@
 
       // Pass 1
       for (let page = 1; page <= 30; page++) {
+        ctx.checkStop();
         const onPage = cards();
         total += onPage.length;
         already += onPage.filter(claimed).length;
@@ -112,7 +106,7 @@
           tally(await ctx.clip(async () => {
             card.scrollIntoView({ block: "center" });
             button(card).click();
-            if (!(await waitFor(ctx, () => claimed(card), 5000))) return false;
+            if (!(await ctx.waitFor(() => claimed(card), 5000))) return false;
             await ctx.sleep(1200);
             return claimed(card);
           }, [700, 1400], value));
@@ -123,7 +117,7 @@
         const first = onPage[0]?.innerText;
         next.click();
         ctx.status(`Loading page ${page + 1}…`);
-        if (!(await waitFor(ctx, () => cards().length > 0 && cards()[0].innerText !== first, 10000))) break;
+        if (!(await ctx.waitFor(() => cards().length > 0 && cards()[0].innerText !== first, 10000))) break;
         await ctx.sleep(ctx.between(800, 1500));
       }
 
@@ -169,7 +163,7 @@
               if (!getLabel(tile)) return tileClaimed(tile);
               tile.scrollIntoView({ block: "center" });
               getLabel(tile).click();
-              if (!(await waitFor(ctx, () => tileClaimed(tile), 5000))) return false;
+              if (!(await ctx.waitFor(() => tileClaimed(tile), 5000))) return false;
               await ctx.sleep(1200);
               return tileClaimed(tile);
             }, [700, 1400], value));
@@ -180,7 +174,7 @@
           const first = firstId();
           ctx.status(`Search: ${dept.name}, page ${page + 1}…`);
           next.click();
-          if (!(await waitFor(ctx, () => tiles().length > 0 && firstId() !== first, 10000))) break;
+          if (!(await ctx.waitFor(() => tiles().length > 0 && firstId() !== first, 10000))) break;
           // Paging through pages with nothing to claim needs only a short pause.
           await ctx.sleep(todo ? ctx.between(800, 1500) : ctx.between(300, 600));
         }

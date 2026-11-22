@@ -39,11 +39,12 @@
     async run(ctx) {
       // The site sends its first coupon requests a moment after load.
       let h = headers();
-      for (let i = 0; i < 10 && !h; i++) { await ctx.sleep(1000); h = headers(); }
+      for (let i = 0; i < 10 && !h; i++) { ctx.checkStop(); await ctx.sleep(1000); h = headers(); }
       if (!h) throw ctx.fail("error", "Couldn't read your Kroger store details. Reload the coupons page, wait for coupons to appear, then run again.");
 
       const coupons = new Map();
       for (let offset = 0; offset < 5000; offset += PAGE) {
+        ctx.checkStop();
         const q = new URLSearchParams([
           ["projections", "coupons.compact"], ["filter.status", "unclipped"], ["filter.status", "active"],
           ["page.size", String(PAGE)], ["page.offset", String(offset)],
@@ -53,9 +54,13 @@
         if (r.status === 403 || r.status === 429) throw ctx.fail("blocked", BLOCKED);
         if (!r.ok) throw ctx.fail("error", `Kroger's coupon list failed (HTTP ${r.status}).`);
         const list = (await r.json())?.data?.coupons || [];
-        for (const c of list) coupons.set(String(c.id), c);
+        let fresh = 0;
+        for (const c of list) {
+          const key = String(c.id);
+          if (!coupons.has(key)) { coupons.set(key, c); fresh++; }
+        }
         ctx.status(`Loading coupons… ${coupons.size} so far`);
-        if (list.length < PAGE) break;
+        if (list.length < PAGE || !fresh) break;
         await ctx.sleep(ctx.between(500, 900));
       }
 

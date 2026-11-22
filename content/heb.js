@@ -52,6 +52,7 @@
       const seenQueries = new Set(queue);
       let signedIn = false;
       while (queue.length) {
+        ctx.checkStop();
         const props = await listPage(id, queue.shift(), ctx);
         for (const c of props.couponData || []) {
           if ("clippedStatus" in c) signedIn = true;
@@ -67,7 +68,9 @@
       if (!signedIn) throw ctx.fail("login", "Sign in to heb.com first, then run again.");
 
       const all = [...coupons.values()];
-      const todo = all.filter((c) => c.clippedStatus !== "CLIPPED");
+      const todo = all
+        .filter((c) => c.clippedStatus !== "CLIPPED")
+        .sort((a, b) => ctx.dollarsOff(b) - ctx.dollarsOff(a));
       ctx.found(all.length, all.length - todo.length);
 
       // Meal-deal style coupons belong to a group that's clipped as one.
