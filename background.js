@@ -115,6 +115,12 @@ async function startRunner(tabId, auto, opts) {
       const res = await chrome.tabs.sendMessage(tabId, { type: "gbc-run", auto, opts });
       if (res?.ready) return true;
     } catch {}
+    // No answer: likely a tab left from before the extension was reloaded,
+    // still running the old scripts. Reload it once.
+    if (i === 4) {
+      await chrome.tabs.reload(tabId).catch(() => {});
+      await waitForLoad(tabId);
+    }
     await new Promise((r) => setTimeout(r, 1000));
   }
   return false;
@@ -149,6 +155,12 @@ async function syncPurchases(checkedInOrder) {
     let ok = false;
     for (let i = 0; i < 20 && !ok; i++) {
       try { ok = (await chrome.tabs.sendMessage(tab.id, { type: "gbc-sync-purchases", known: Object.keys(purchases.receipts), days: PURCHASE_DAYS }))?.ready; } catch {}
+      // A tab that was open before the extension was reloaded or updated
+      // still has the old scripts, which can't answer; reload it once.
+      if (!ok && existing && i === 2) {
+        await chrome.tabs.reload(tab.id).catch(() => {});
+        await waitForLoad(tab.id);
+      }
       if (!ok) await new Promise((r) => setTimeout(r, 1000));
     }
     if (!ok) { clearTimeout(timer); resolve({ error: "error", message: `${site.name}'s purchases page didn't load.` }); }
